@@ -41,12 +41,13 @@ void app_init(settings_t *s) {
     octave_init(s);
 }
 
+// Entering config mode also silences the synth, for any note left stuck
 static void enter_config(bool undo_toggle) {
     if (undo_toggle) {
         keyboard_set_chord_mode(!keyboard_chord_mode());
-    } else {
-        keyboard_reset();
     }
+    keyboard_reset();
+    notes_panic();
     config = true;
     bootsel_saved = false;
     config_mode_enter(settings);

@@ -61,7 +61,7 @@ the drawing modules also run in the display preview (`tools/preview`).
   the buttons are then ignored until both are released.
 - **MIDI** never blocks. Note-offs are sent as note-on with velocity 0 to
   share running status; the status byte is repeated after 1 s of silence.
-  Power-up sends All Notes Off and All Sound Off.
+  Power-up and entering config mode send All Notes Off and All Sound Off.
 - **Config mode** clamps values and leaves when any other key is released.
   On a setting's screen a G' tap, or 3 s untouched (the last second on the
   border), goes back to the map instead.

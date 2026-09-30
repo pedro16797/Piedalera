@@ -15,7 +15,8 @@ Each pedal plays its note (C is MIDI 48 at octave 3).
 
 - **One octave button:** octave up or down; hold to repeat.
 - **Both briefly:** chord mode on or off.
-- **Both for a second:** config mode.
+- **Both for a second:** config mode. Entering it also silences the synth,
+  in case a note got stuck.
 
 ## Chord mode
 

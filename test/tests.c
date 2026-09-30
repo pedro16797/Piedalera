@@ -348,6 +348,7 @@ static void test_app(void) {
     app_ui_state(&ui);
     CHECK(ui.config && !ui.chord_mode && ui.msg == CONFIG_MSG_TITLE);
     CHECK(ui.progress == 0);
+    EXPECT("cc 123 0", "cc 120 0");         // entering it silences the synth
     tick(0, 1100);
 
     // E: velocity down, auto-repeat after 200 ms then every 50 ms

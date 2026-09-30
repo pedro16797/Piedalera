@@ -2,9 +2,9 @@
 
 Everything the MicroPython firmware did is implemented and running on the
 pedalboard, plus a keyboard screen, start-up animation, mode and octave
-transitions, a debounce setting and USB flash mode from config mode, and
-for battery use: charge monitoring, idle dimming, screen off and deep
-sleep.
+transitions, a debounce setting, USB flash mode and a MIDI panic from
+config mode, and for battery use: charge monitoring, idle dimming, screen
+off and deep sleep.
 
 ## To check on the hardware
 
@@ -16,7 +16,6 @@ sleep.
 
 ## Next
 
-- [ ] MIDI panic on demand
 - [ ] Watchdog
 - [ ] Expression pedal on GP28 / ADC2 (CC11, calibration)
 - [ ] Instrument presets (`instList` in `legacy/Piedalera.py`)
