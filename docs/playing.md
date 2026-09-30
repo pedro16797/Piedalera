@@ -5,9 +5,12 @@ off with `display.splash`). Pedals play straight away; using any pedal or
 button skips the rest of it.
 
 Every screen shows the 20 pedals as a keyboard along the top, with the
-pedals you hold drawn hollow. The diagrams below are drawn by the firmware's
-own screen code (`cmake --build build-preview --target diagrams`), so they
-look like the display.
+pedals you hold drawn hollow. While you hold a pedal or buttons for a
+second to do something, a line runs clockwise round the edge of the screen
+from the top middle; the action happens when it closes. The diagrams below
+are drawn by the firmware's own screen code
+(`cmake --build build-preview --target diagrams`), so they look like the
+display.
 
 ## Normal mode
 
@@ -80,7 +83,9 @@ down (left) and up (right):
 - Pressing and releasing any other pedal, or tapping G', leaves config mode
   and saves the settings, so they survive a power cycle. The octave is saved
   too, a few seconds after you last change it.
-- **Holding G' for a second** saves the settings and restarts the Pico in
-  USB flash mode (the screen shows `USB FLASH`), so new firmware can be
-  copied onto it without opening the pedalboard and pressing BOOTSEL. See the [setup guide](setup-guide.md#3-install-the-firmware).
+- **Holding G' for a second** restarts the Pico in USB flash mode, so new
+  firmware can be copied onto it without opening the pedalboard and pressing
+  BOOTSEL. `USB FLASH` shows once you have held it for a moment, and the
+  Pico restarts as soon as the line round the screen closes. Letting go
+  before then just leaves config mode. See the [setup guide](setup-guide.md#3-install-the-firmware).
 - The octave buttons do nothing in config mode.

@@ -15,7 +15,8 @@
 #define FRAME_PERIOD_US     16667   // 60 fps cap
 #define DISPLAY_RETRY_MS    500
 #define BOOTSEL_SAVE_WAIT_MS 2000
-#define BOOTSEL_SHOW_MS     100     // time for the display to show why
+#define BOOTSEL_SHOW_WAIT_MS 50     // for the last frame to be drawn
+#define FRAME_SEND_MS       13      // I2C transfer of a 128x32 frame
 
 static settings_t settings;
 
@@ -26,6 +27,7 @@ static uint32_t ui_version;
 static settings_t shared_save;
 static bool save_requested;
 static uint32_t saves_done;
+static uint32_t ui_shown;   // last ui_version sent to the display
 
 static void publish_ui(const ui_state_t *st) {
     uint32_t irq = spin_lock_blocking(lock);
@@ -123,6 +125,9 @@ static void core1_main(void) {
             ui_render(&gfx, &st);
             display_send(&gfx, st.brightness);
             redraw = !display_ok();
+            irq = spin_lock_blocking(lock);
+            ui_shown = seen;
+            spin_unlock(lock, irq);
         }
         sleep_until(next);
     }
@@ -135,8 +140,16 @@ static uint32_t get_saves_done(void) {
     return n;
 }
 
-// Save the settings, let the screen show the message, then reboot into the
-// USB bootloader so new firmware can be copied onto the drive
+static bool ui_up_to_date(void) {
+    uint32_t irq = spin_lock_blocking(lock);
+    bool done = ui_shown == ui_version;
+    spin_unlock(lock, irq);
+    return done;
+}
+
+// Save the settings (already done while USB FLASH showed, unless they changed
+// since), let the screen show the full border, then reboot into the USB
+// bootloader so new firmware can be copied onto the drive
 static void reboot_to_bootsel(void) {
     uint32_t before = get_saves_done();
     request_save(&settings);
@@ -144,7 +157,11 @@ static void reboot_to_bootsel(void) {
     while (get_saves_done() == before && !time_reached(timeout)) {
         tight_loop_contents();
     }
-    sleep_ms(BOOTSEL_SHOW_MS);
+    timeout = make_timeout_time_ms(BOOTSEL_SHOW_WAIT_MS);
+    while (!ui_up_to_date() && !time_reached(timeout)) {
+        tight_loop_contents();
+    }
+    sleep_ms(FRAME_SEND_MS);
     reset_usb_boot(0, 0);
 }
 

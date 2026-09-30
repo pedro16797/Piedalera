@@ -24,6 +24,10 @@ void widget_arc(gfx_t *g, int x, int y, int key_a, int key_b);
 void widget_tiny_text(gfx_t *g, int x, int y, const char *str);
 int widget_tiny_width(const char *str);
 
+// Screen border inverted clockwise from the top middle, progress/255 of the
+// way round, while a key is held towards an action
+void widget_hold_border(gfx_t *g, uint8_t progress);
+
 // Horizontal bar, filled in proportion to value within [lo, hi]; from the
 // middle when the range spans zero
 void widget_bar(gfx_t *g, int x, int y, int w, int h, int value, int lo, int hi);

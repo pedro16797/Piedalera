@@ -22,8 +22,10 @@ typedef enum {
     CONFIG_BOOTSEL,     // reboot into the USB bootloader to flash firmware
 } config_result_t;
 
-// Holding this key (G') leaves for the bootloader instead of just leaving
+// Holding this key (G') shows USB FLASH after BOOTSEL_SHOW_MS, then leaves
+// for the bootloader instead of just leaving
 #define KEY_BOOTSEL         19
+#define BOOTSEL_SHOW_MS     100
 #define BOOTSEL_HOLD_MS     1000
 
 // Function keys adjust settings while held; any other key leaves on release
@@ -35,6 +37,9 @@ config_result_t config_mode_update(const input_state_t *in, uint32_t now_ms);
 bool config_mode_changed(void);
 
 config_msg_t config_mode_msg(int *value);
+
+// How long G' has been held towards USB flash mode, 0 if not
+uint32_t config_mode_hold_ms(uint32_t now_ms);
 
 // Keys that turn a setting down and up (the same key twice for bootsel);
 // false for CONFIG_MSG_TITLE

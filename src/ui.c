@@ -103,22 +103,28 @@ static void config_value(gfx_t *g, const ui_state_t *st) {
                item->lo, item->hi);
 }
 
-// About to restart in USB flash mode: the whole screen for the message
-static void config_bootsel(gfx_t *g) {
-    gfx_blit(g, &SPRITE_FLASH, 4, (g->height - SPRITE_FLASH.height) / 2);
-    gfx_text_scaled(g, 24, g->height / 2 - 16, "USB", 2);
-    gfx_text_scaled(g, 24, g->height / 2, "FLASH", 2);
+// About to restart in USB flash mode: "USB FLASH" at double size under the
+// keyboard, letters 3 px apart instead of 4 so it fits on one line
+#define FLASH_ADVANCE   15      // 12 px of ink and the gap
+#define FLASH_WIDTH     120     // 8 letters, 7 gaps, 3 px more between words
+
+static void config_bootsel(gfx_t *g, const ui_state_t *st) {
+    widget_keyboard(g, kb_x(g), 0, KB_H, st->keys, 0);
+    // Ink starts 2 px into each 16 px cell and is 14 px tall
+    int x = (g->width - FLASH_WIDTH) / 2 - 2;
+    int y = KB_H + (g->height - KB_H - 14) / 2;
+    gfx_text_spaced(g, x, y, "USB", 2, FLASH_ADVANCE);
+    gfx_text_spaced(g, x + 3 * FLASH_ADVANCE + 3, y, "FLASH", 2, FLASH_ADVANCE);
 }
 
-void ui_render(gfx_t *g, const ui_state_t *st) {
+static void screen(gfx_t *g, const ui_state_t *st) {
     char line[24];
 
-    gfx_clear(g);
     if (st->config) {
         if (st->msg == CONFIG_MSG_TITLE) {
             config_map(g, st);
         } else if (st->msg == CONFIG_MSG_BOOTSEL) {
-            config_bootsel(g);
+            config_bootsel(g, st);
         } else {
             config_value(g, st);
         }
@@ -144,4 +150,10 @@ void ui_render(gfx_t *g, const ui_state_t *st) {
     if (st->hold) {
         gfx_text(g, g->width - 4 * 8, TEXT_Y + 9, "HOLD");
     }
+}
+
+void ui_render(gfx_t *g, const ui_state_t *st) {
+    gfx_clear(g);
+    screen(g, st);
+    widget_hold_border(g, st->progress);
 }

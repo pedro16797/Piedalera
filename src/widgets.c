@@ -163,3 +163,19 @@ void widget_bar(gfx_t *g, int x, int y, int w, int h, int value, int lo, int hi)
     }
     gfx_fill(g, x + 2, y + 2, (value - lo) * inner / (hi - lo), h - 4, true);
 }
+
+void widget_hold_border(gfx_t *g, uint8_t progress) {
+    int w = g->width, h = g->height;
+    int n = progress * (2 * (w + h) - 4) / 255;
+    int x = w / 2, y = 0, dx = 1, dy = 0;
+    for (int i = 0; i < n; i++) {
+        gfx_invert(g, x, y, 1, 1);
+        // Turn at the corners
+        if (dx > 0 && x == w - 1) { dx = 0; dy = 1; }
+        else if (dy > 0 && y == h - 1) { dx = -1; dy = 0; }
+        else if (dx < 0 && x == 0) { dx = 0; dy = -1; }
+        else if (dy < 0 && y == 0) { dx = 1; dy = 0; }
+        x += dx;
+        y += dy;
+    }
+}

@@ -24,6 +24,7 @@ void gfx_clear(gfx_t *g);
 
 // Set (on) or clear a rectangle, clipped to the screen
 void gfx_fill(gfx_t *g, int x, int y, int w, int h, bool on);
+void gfx_invert(gfx_t *g, int x, int y, int w, int h);
 
 // Draw a sprite's lit pixels at any position, clipped to the screen
 void gfx_blit(gfx_t *g, const sprite_t *s, int x, int y);
@@ -34,3 +35,6 @@ void gfx_text(gfx_t *g, int x, int y, const char *str);
 
 // Same, each font pixel drawn as scale x scale
 void gfx_text_scaled(gfx_t *g, int x, int y, const char *str, int scale);
+
+// Scaled text with characters advance pixels apart instead of 8 * scale
+void gfx_text_spaced(gfx_t *g, int x, int y, const char *str, int scale, int advance);

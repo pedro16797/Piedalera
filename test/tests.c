@@ -335,14 +335,16 @@ static void test_app(void) {
     const uint32_t both = INPUT_BIT(INPUT_OCT_UP) | INPUT_BIT(INPUT_OCT_DOWN);
     ui_state_t ui;
 
-    // Enter config: chord mode toggles at 100 ms and is undone at 1 s
+    // Enter config: chord mode toggles at 100 ms and is undone at 1 s; the
+    // border shows how far the hold is
     for (uint32_t t = 0; t <= 1000; t += 10) {
         tick(both, t);
         app_ui_state(&ui);
-        if (t == 500) CHECK(ui.chord_mode);
+        if (t == 500) CHECK(ui.chord_mode && ui.progress == 127);
     }
     app_ui_state(&ui);
     CHECK(ui.config && !ui.chord_mode && ui.msg == CONFIG_MSG_TITLE);
+    CHECK(ui.progress == 0);
     tick(0, 1100);
 
     // E: velocity down, auto-repeat after 200 ms then every 50 ms
@@ -418,12 +420,24 @@ static void test_app(void) {
     // Holding G' for a second asks for the bootloader
     for (uint32_t t = 16000; t <= 17000; t += 10) tick(both, t);
     tick(0, 17100);
+    // USB FLASH shows after 0.1 s and the settings are saved then; the
+    // reboot comes as the border closes
     tick(INPUT_BIT(KEY_BOOTSEL), 18000);
-    CHECK(!app_bootsel());
+    tick(INPUT_BIT(KEY_BOOTSEL), 18099);
+    app_ui_state(&ui);
+    CHECK(ui.msg != CONFIG_MSG_BOOTSEL && !app_save_due(18099));
+    tick(INPUT_BIT(KEY_BOOTSEL), 18100);
+    app_ui_state(&ui);
+    CHECK(ui.msg == CONFIG_MSG_BOOTSEL);
+    CHECK(app_save_due(18100) && !app_save_due(18101));
+    tick(INPUT_BIT(KEY_BOOTSEL), 18250);
+    CHECK(!app_bootsel() && !app_save_due(18250));
+    app_ui_state(&ui);
+    CHECK(ui.progress == 63);
     tick(INPUT_BIT(KEY_BOOTSEL), 19000);
     CHECK(app_bootsel());
     app_ui_state(&ui);
-    CHECK(ui.config && ui.msg == CONFIG_MSG_BOOTSEL);
+    CHECK(ui.config && ui.msg == CONFIG_MSG_BOOTSEL && ui.progress == 255);
     tick(0, 19100);                         // stays put until the reboot
     CHECK(app_bootsel());
 }
@@ -467,6 +481,16 @@ static void test_ui(void) {
     st.msg_value = -3;
     ui_render(&g, &st);
     CHECK(pixel(&g, 64, 23));                           // bar frame
+
+    // Hold border: inverted from the top middle, clockwise
+    st.progress = 64;   // a quarter: the top right and part of the right
+    ui_render(&g, &st);
+    CHECK(pixel(&g, 64, 23));                           // untouched
+    CHECK(pixel(&g, 127, 5) && !pixel(&g, 0, 5));
+    CHECK(!pixel(&g, 70, 0));                           // lit key, inverted
+    st.progress = 255;
+    ui_render(&g, &st);
+    CHECK(pixel(&g, 0, 5) && pixel(&g, 5, 31));
 
     // Text at y = 12 straddles pages 1 and 2
     gfx_clear(&g);

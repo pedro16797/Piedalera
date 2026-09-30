@@ -50,10 +50,10 @@ Hardware-independent modules are also built into the host tests (`test/`);
 | `app.c`         | 0    | ✓    | Routes inputs to the above, UI snapshot, save timing |
 | `settings.c`    | –    | ✓    | Settings table, text parse and format |
 | `storage.c`     | 0, 1 |      | Load at boot (core 0), save (core 1) |
-| `gfx.c`         | 1    | ✓    | 1-bit framebuffer in SSD1305 layout, 8×8 text, fills, sprites |
+| `gfx.c`         | 1    | ✓    | 1-bit framebuffer in SSD1305 layout, 8×8 text, fills, inversion, sprites |
 | `ui.c`          | 1    | ✓    | Draws the screens from a snapshot: keyboard strip on top, then octave, chord or config details |
 | `splash.c`      | 1    | ✓    | Start-up animation; sprites in `splash_sprites.h`, generated from `assets/splash/` |
-| `widgets.c`     | 1    | ✓    | Keyboard strip (pressed keys outlined around the black-key notches), pointer arcs, bars, 3×5 labels |
+| `widgets.c`     | 1    | ✓    | Keyboard strip (pressed keys outlined around the black-key notches), pointer arcs, bars, hold border, 3×5 labels |
 | `display.c`     | 1    |      | SSD1305 init and DMA frame transfer |
 | `main.c`        | 0, 1 |      | Start-up, both core loops, hand-over |
 
@@ -88,10 +88,15 @@ Hardware-independent modules are also built into the host tests (`test/`);
 - **Config mode** keeps the legacy keys and timings, clamps instead of
   wrapping (fixes #4, #11) and leaves when any other key is released. D'
   and E' adjust the debounce time, which applies immediately.
-- **USB flash mode:** holding G' for 1 s in config mode asks core 1 to save
-  the settings, waits for it (up to 2 s), gives the screen 100 ms to show
-  `USB FLASH` and calls `reset_usb_boot()`, so firmware can be updated
-  without pressing BOOTSEL.
+- **USB flash mode:** holding G' in config mode shows `USB FLASH` after
+  100 ms and saves the settings then. At 1 s core 0 asks core 1 to save
+  again (a no-op unless something changed), waits for it (up to 2 s) and for
+  the frame with the full hold border to go out, and calls
+  `reset_usb_boot()`, so firmware can be updated without pressing BOOTSEL.
+- **Hold progress:** while both octave buttons or G' in config mode are
+  held towards their 1 s action, the snapshot carries how far along the
+  hold is (0–255), and core 1 inverts that share of the screen border,
+  clockwise from the top middle, over whatever screen is shown.
 - **Settings** live in the second to last flash sector as `key = value` text
   (see [`configuration.md`](configuration.md)), so they can be flashed as a
   separate UF2 without rebuilding. Invalid values fall back to defaults key

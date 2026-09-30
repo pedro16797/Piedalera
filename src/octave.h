@@ -19,5 +19,8 @@ typedef enum {
 void octave_init(settings_t *s);
 octave_event_t octave_update(bool up, bool down, uint32_t now_ms);
 
+// How long both buttons have been held towards config mode, 0 if not
+uint32_t octave_hold_ms(uint32_t now_ms);
+
 // Ignore the buttons until both are released
 void octave_block(void);

@@ -13,7 +13,9 @@ void gfx_clear(gfx_t *g) {
     memset(g->buf, 0, g->width * (g->height / 8));
 }
 
-void gfx_fill(gfx_t *g, int x, int y, int w, int h, bool on) {
+typedef enum { CLEAR, SET, INVERT } op_t;
+
+static void rect(gfx_t *g, int x, int y, int w, int h, op_t op) {
     int x0 = x < 0 ? 0 : x, x1 = x + w > g->width ? g->width : x + w;
     int y0 = y < 0 ? 0 : y, y1 = y + h > g->height ? g->height : y + h;
     for (int page = y0 >> 3; page < (y1 + 7) >> 3; page++) {
@@ -24,9 +26,17 @@ void gfx_fill(gfx_t *g, int x, int y, int w, int h, bool on) {
         if (y1 < top + 8) mask &= 0xFF >> (top + 8 - y1);
         uint8_t *row = &g->buf[page * g->width];
         for (int i = x0; i < x1; i++) {
-            row[i] = on ? row[i] | mask : row[i] & ~mask;
+            row[i] = op == SET ? row[i] | mask : op == CLEAR ? row[i] & ~mask : row[i] ^ mask;
         }
     }
+}
+
+void gfx_fill(gfx_t *g, int x, int y, int w, int h, bool on) {
+    rect(g, x, y, w, h, on ? SET : CLEAR);
+}
+
+void gfx_invert(gfx_t *g, int x, int y, int w, int h) {
+    rect(g, x, y, w, h, INVERT);
 }
 
 void gfx_blit(gfx_t *g, const sprite_t *s, int x, int y) {
@@ -80,7 +90,11 @@ static void column(gfx_t *g, int x, int y, uint16_t bits) {
 }
 
 void gfx_text_scaled(gfx_t *g, int x, int y, const char *str, int scale) {
-    for (; *str && x < g->width; str++, x += 8 * scale) {
+    gfx_text_spaced(g, x, y, str, scale, 8 * scale);
+}
+
+void gfx_text_spaced(gfx_t *g, int x, int y, const char *str, int scale, int advance) {
+    for (; *str && x < g->width; str++, x += advance) {
         uint16_t cols[8];
         glyph(*str, cols);
         for (int i = 0; i < 8; i++) {

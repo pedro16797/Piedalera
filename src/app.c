@@ -12,9 +12,11 @@
 static settings_t *settings;
 static bool config;
 static bool bootsel;
+static bool bootsel_saved;  // saved while USB FLASH shows
 static bool save_pending;
 static uint32_t save_at;
 static uint32_t pressed;    // last debounced inputs, for the screen
+static uint8_t progress;    // of the current key hold, for the screen
 
 static void request_save(uint32_t now, uint32_t delay) {
     save_pending = true;
@@ -26,6 +28,7 @@ void app_init(settings_t *s) {
     config = false;
     bootsel = false;
     pressed = 0;
+    progress = 0;
     save_pending = false;
     notes_init(s->midi_channel - 1);
     notes_panic();
@@ -40,7 +43,12 @@ static void enter_config(bool undo_toggle) {
         keyboard_reset();
     }
     config = true;
+    bootsel_saved = false;
     config_mode_enter(settings);
+}
+
+static uint8_t hold_progress(uint32_t held, uint32_t total) {
+    return held >= total ? 255 : held * 255 / total;
 }
 
 void app_update(const input_state_t *in, uint32_t now) {
@@ -48,8 +56,19 @@ void app_update(const input_state_t *in, uint32_t now) {
     if (bootsel) {
         return;
     }
+    progress = 0;
     if (config) {
-        switch (config_mode_update(in, now)) {
+        config_result_t result = config_mode_update(in, now);
+        if (result != CONFIG_EXIT) {
+            progress = hold_progress(config_mode_hold_ms(now), BOOTSEL_HOLD_MS);
+        }
+        // Save as soon as USB FLASH shows, so the reboot needn't wait
+        int value;
+        if (config_mode_msg(&value) == CONFIG_MSG_BOOTSEL && !bootsel_saved) {
+            bootsel_saved = true;
+            request_save(now, 0);
+        }
+        switch (result) {
         case CONFIG_EXIT:
             config = false;
             octave_block();
@@ -69,6 +88,7 @@ void app_update(const input_state_t *in, uint32_t now) {
     bool up = in->pressed & INPUT_BIT(INPUT_OCT_UP);
     bool down = in->pressed & INPUT_BIT(INPUT_OCT_DOWN);
     octave_event_t event = octave_update(up, down, now);
+    progress = hold_progress(octave_hold_ms(now), OCTAVE_CONFIG_HOLD_MS);
     switch (event) {
     case OCTAVE_CHANGED:
         request_save(now, OCTAVE_SAVE_DELAY_MS);
@@ -105,6 +125,7 @@ void app_ui_state(ui_state_t *out) {
     out->hold = keyboard_hold();
     out->config = config;
     out->brightness = settings->display_brightness;
+    out->progress = progress;
     if (config) {
         int value;
         out->msg = config_mode_msg(&value);
@@ -117,7 +138,7 @@ bool app_bootsel(void) {
 }
 
 bool app_save_due(uint32_t now) {
-    if (!save_pending || config || (int32_t)(now - save_at) < 0) {
+    if (!save_pending || (config && !bootsel_saved) || (int32_t)(now - save_at) < 0) {
         return false;
     }
     save_pending = false;

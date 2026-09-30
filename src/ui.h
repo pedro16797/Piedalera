@@ -18,6 +18,7 @@ typedef struct {
     uint8_t msg;        // config_msg_t
     int16_t msg_value;
     uint8_t brightness;
+    uint8_t progress;   // of a key hold towards an action, 0-255
 } ui_state_t;
 
 void ui_render(gfx_t *g, const ui_state_t *st);

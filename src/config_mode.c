@@ -116,9 +116,11 @@ config_result_t config_mode_update(const input_state_t *in, uint32_t now) {
     if (in->up & INPUT_BIT(exit_key)) {
         return CONFIG_EXIT;
     }
-    if (exit_key == KEY_BOOTSEL && now - exit_down_at >= BOOTSEL_HOLD_MS) {
+    if (exit_key == KEY_BOOTSEL && now - exit_down_at >= BOOTSEL_SHOW_MS) {
         msg = CONFIG_MSG_BOOTSEL;
-        return CONFIG_BOOTSEL;
+        if (now - exit_down_at >= BOOTSEL_HOLD_MS) {
+            return CONFIG_BOOTSEL;
+        }
     }
     return CONFIG_STAY;
 }
@@ -141,6 +143,10 @@ bool config_mode_keys(config_msg_t msg, uint8_t *down, uint8_t *up) {
         }
     }
     return found;
+}
+
+uint32_t config_mode_hold_ms(uint32_t now) {
+    return exit_key == KEY_BOOTSEL ? now - exit_down_at : 0;
 }
 
 config_msg_t config_mode_msg(int *value) {

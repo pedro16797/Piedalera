@@ -13,6 +13,10 @@ void octave_init(settings_t *s) {
     phase = IDLE;
 }
 
+uint32_t octave_hold_ms(uint32_t now) {
+    return phase == BOTH ? now - since : 0;
+}
+
 void octave_block(void) {
     phase = BLOCKED;
 }

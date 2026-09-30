@@ -103,6 +103,23 @@ static void config_debounce(ui_state_t *st, uint32_t t) {
     st->msg_value = 5;
 }
 
+// Both octave buttons held towards config mode, 60 % of the way
+static void normal_hold(ui_state_t *st, uint32_t t) {
+    (void)t;
+    base(st);
+    st->progress = 153;
+}
+
+// G' held for a second: USB FLASH from 0.1 s, reboot when the border closes
+static void config_hold(ui_state_t *st, uint32_t t) {
+    config_title(st, t);
+    st->keys = KEY(19);
+    st->progress = t < 1000 ? t * 255 / 1000 : 255;
+    if (t >= 100) {
+        st->msg = CONFIG_MSG_BOOTSEL;
+    }
+}
+
 static void config_bootsel(ui_state_t *st, uint32_t t) {
     config_title(st, t);
     st->keys = KEY(19);
@@ -112,6 +129,7 @@ static void config_bootsel(ui_state_t *st, uint32_t t) {
 // Add a scene for every screen or animation being worked on
 static const scene_t SCENES[] = {
     { "normal",            2000, 10, normal, NULL },
+    { "normal-hold",       0,    0,  normal_hold, NULL },
     { "chord",             0,    0,  chord, NULL },
     { "chord-hold",        0,    0,  chord_hold, NULL },
     { "config",            0,    0,  config_title, NULL },
@@ -119,6 +137,7 @@ static const scene_t SCENES[] = {
     { "config-velocity",   0,    0,  config_velocity, NULL },
     { "config-transpose",  0,    0,  config_transpose, NULL },
     { "config-debounce",   0,    0,  config_debounce, NULL },
+    { "config-hold",       1200, 30, config_hold, NULL },
     { "config-bootsel",    0,    0,  config_bootsel, NULL },
     { "splash", SPLASH_FRAMES * SPLASH_FRAME_MS, 1000 / SPLASH_FRAME_MS, NULL, splash_draw },
 };
