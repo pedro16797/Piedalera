@@ -62,6 +62,10 @@ the drawing modules also run in the display preview (`tools/preview`).
 - **MIDI** never blocks. Note-offs are sent as note-on with velocity 0 to
   share running status; the status byte is repeated after 1 s of silence.
   Power-up and entering config mode send All Notes Off and All Sound Off.
+- **Watchdog:** 3 s, fed by core 0 while core 1's loop count also moves, so
+  a hang on either core resets the Pico. It stands still in deep sleep and
+  is turned off before the USB flash reboot. After a watchdog reset the
+  splash is skipped.
 - **Config mode** clamps values and leaves when any other key is released.
   On a setting's screen a G' tap, or 3 s untouched (the last second on the
   border), goes back to the map instead.

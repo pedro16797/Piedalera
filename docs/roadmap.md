@@ -3,8 +3,8 @@
 Everything the MicroPython firmware did is implemented and running on the
 pedalboard, plus a keyboard screen, start-up animation, mode and octave
 transitions, a debounce setting, USB flash mode and a MIDI panic from
-config mode, and for battery use: charge monitoring, idle dimming, screen
-off and deep sleep.
+config mode, a watchdog, and for battery use: charge monitoring, idle
+dimming, screen off and deep sleep.
 
 ## To check on the hardware
 
@@ -12,11 +12,11 @@ off and deep sleep.
   PLL and ring oscillator all stopped)
 - [ ] Waking from deep sleep on every board, and the press playing
 - [ ] USB flash mode after having been in deep sleep
+- [ ] No watchdog resets in normal use, including settings saves and deep sleep
 - [ ] Battery voltage against a multimeter (`power.drop_mv`), also on a W board
 
 ## Next
 
-- [ ] Watchdog
 - [ ] Expression pedal on GP28 / ADC2 (CC11, calibration)
 - [ ] Instrument presets (`instList` in `legacy/Piedalera.py`)
 - [ ] Wear levelling for the settings sector, if octave saves turn out

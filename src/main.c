@@ -4,6 +4,7 @@
 #include "board.h"
 #include "display.h"
 #include "hardware/sync.h"
+#include "hardware/watchdog.h"
 #include "input.h"
 #include "midi.h"
 #include "pico/bootrom.h"
@@ -24,6 +25,8 @@
 #define PARK_WAIT_MS        200     // for core 1 to finish a frame and park
 #define WAKE_GRACE_MS       100     // to see the press that woke it
 #define SLEEP_RETRY_MS      1000
+#define WATCHDOG_MS         3000    // longer than any wait, e.g. a flash save
+#define CORE1_STALL_MS      2000    // core 1 silent this long: let it reset
 
 static settings_t settings;
 
@@ -37,6 +40,7 @@ static uint32_t saves_done;
 static uint32_t ui_shown;   // last ui_version sent to the display
 static volatile bool park_requested;    // core 0 wants to stop the clocks
 static volatile bool parked;            // core 1 is idle for it
+static volatile uint32_t core1_beats;   // core 1 loop count, for the watchdog
 
 static void publish_ui(const ui_state_t *st) {
     uint32_t irq = spin_lock_blocking(lock);
@@ -64,8 +68,8 @@ static void core1_main(void) {
     uint32_t retry_at = 0;
 
     // The splash starts once the display answers and ends early if the UI
-    // changes (a button was used)
-    bool splash = settings.display_splash;
+    // changes (a button was used); not after a watchdog reset, mid-song
+    bool splash = settings.display_splash && !watchdog_enable_caused_reboot();
     bool splash_started = false;
     uint32_t splash_at = 0, splash_version = 0;
     int splash_frame = -1;
@@ -76,6 +80,7 @@ static void core1_main(void) {
     while (true) {
         next = delayed_by_us(next, FRAME_PERIOD_US);
         uint32_t now = to_ms_since_boot(get_absolute_time());
+        core1_beats++;
 
         settings_t to_save;
         bool save = false;
@@ -215,6 +220,8 @@ static void reboot_to_bootsel(void) {
         tight_loop_contents();
     }
     sleep_ms(FRAME_SEND_MS);
+    // Or it would reset the bootloader while the drive is open
+    watchdog_disable();
     reset_usb_boot(0, 0);
 }
 
@@ -264,6 +271,11 @@ int main(void) {
     uint32_t battery_at = 0;
     uint32_t retry_at = 0;      // next time to check whether to sleep
 
+    // Resets the Pico if either core hangs; it stands still in deep sleep,
+    // and a reset starts with a MIDI panic, so no note is left hanging
+    uint32_t beats = core1_beats, core1_at = 0;
+    watchdog_enable(WATCHDOG_MS, true);
+
     while (true) {
         next = delayed_by_us(next, SCAN_PERIOD_US);
         uint32_t now = to_ms_since_boot(get_absolute_time());
@@ -294,6 +306,13 @@ int main(void) {
         }
         if (app_bootsel()) {
             reboot_to_bootsel();
+        }
+        if (core1_beats != beats) {
+            beats = core1_beats;
+            core1_at = now;
+        }
+        if (now - core1_at < CORE1_STALL_MS) {
+            watchdog_update();
         }
         sleep_until(next);
     }

@@ -41,6 +41,7 @@ target_link_libraries(piedalera
     hardware_i2c
     hardware_rosc
     hardware_sync
+    hardware_watchdog
     hardware_xosc
 )
 
