@@ -22,6 +22,7 @@ static const field_t FIELDS[] = {
     F("display.height",     display_height,     T_U8,   32,   64,   32),
     F("display.col_offset", display_col_offset, T_U8,    0,    4,    4),
     F("display.brightness", display_brightness, T_U8,    0,  255,   15),
+    F("display.splash",     display_splash,     T_BOOL,  0,    1,    1),
     F("midi.channel",       midi_channel,       T_U8,    1,   16,    1),
     F("midi.velocity",      midi_velocity,      T_U8,    1,  127,   95),
     F("midi.transpose",     midi_transpose,     T_I8,  -12,   12,    0),

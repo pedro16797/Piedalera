@@ -38,6 +38,7 @@ SCHEMA = {
     "display.height":     (32, 64),
     "display.col_offset": (0, 4),
     "display.brightness": (0, 255),
+    "display.splash":     bool,
     "midi.channel":       (1, 16),
     "midi.velocity":      (1, 127),
     "midi.transpose":     (-12, 12),

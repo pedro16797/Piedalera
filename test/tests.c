@@ -11,6 +11,7 @@
 #include "notes.h"
 #include "octave.h"
 #include "settings.h"
+#include "splash.h"
 #include "ui.h"
 
 static int failures;
@@ -450,6 +451,44 @@ static void test_ui(void) {
     gfx_text(&g, -4, -4, "W");
 }
 
+// Splash: every frame matches assets/splash/reference.gif (FNV-1a of the
+// framebuffer, taken from the GIF)
+
+static const uint32_t SPLASH_REFERENCE[SPLASH_FRAMES] = {
+    0x4d7705c5, 0xa886fb54, 0xdfba8a63, 0x13f9e619, 0x9e153a4c, 0x7670d45d,
+    0x1bb57122, 0xa62bda29, 0x0633cef4, 0x748b2488, 0xd0958f99, 0xfa7ba644,
+    0x9669c004, 0x1a4ea9d3, 0xfc291715, 0xd70281a9, 0xc2d66b25, 0x8ff4094f,
+    0xeae6c826, 0x50e93764, 0xa47650e2, 0x0a3d51ef, 0x451aa479, 0x1f3e413f,
+    0x2372db1b, 0xc24692c9, 0xc24692c9, 0xc24692c9, 0xc24692c9, 0xd1ae3359,
+    0x335df499, 0xc8c87eb5, 0x27ce0105, 0x4d7705c5,
+};
+
+static uint32_t fnv1a(const uint8_t *p, size_t n) {
+    uint32_t h = 0x811c9dc5;
+    while (n--) h = (h ^ *p++) * 0x01000193;
+    return h;
+}
+
+static void test_splash(void) {
+    static gfx_t g;
+    gfx_init(&g, 128, 32);
+    for (int f = 0; f < SPLASH_FRAMES; f++) {
+        CHECK(splash_draw(&g, f * SPLASH_FRAME_MS + SPLASH_FRAME_MS / 2));
+        if (fnv1a(g.buf, 128 * 4) != SPLASH_REFERENCE[f]) {
+            printf("splash frame %d differs from the reference\n", f);
+            failures++;
+        }
+    }
+    CHECK(!splash_draw(&g, SPLASH_FRAMES * SPLASH_FRAME_MS));
+
+    // Centred on a taller display, nothing drawn outside
+    gfx_init(&g, 128, 64);
+    splash_draw(&g, 26 * SPLASH_FRAME_MS);
+    for (int x = 0; x < 128; x++) {
+        CHECK(g.buf[x] == 0 && g.buf[7 * 128 + x] == 0);
+    }
+}
+
 int main(void) {
     test_settings();
     test_debounce();
@@ -459,6 +498,7 @@ int main(void) {
     test_octave();
     test_app();
     test_ui();
+    test_splash();
     if (failures) {
         printf("%d failure(s)\n", failures);
         return EXIT_FAILURE;

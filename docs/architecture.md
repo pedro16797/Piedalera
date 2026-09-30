@@ -34,7 +34,8 @@ code.
 ## Modules
 
 Hardware-independent modules are also built into the host tests (`test/`);
-`gfx.c` and `ui.c` also run in the display preview (`tools/preview`).
+`gfx.c`, `ui.c` and `splash.c` also run in the display preview
+(`tools/preview`).
 
 | Module          | Core | Host | Responsibility |
 |-----------------|------|------|----------------|
@@ -49,8 +50,9 @@ Hardware-independent modules are also built into the host tests (`test/`);
 | `app.c`         | 0    | ✓    | Routes inputs to the above, UI snapshot, save timing |
 | `settings.c`    | –    | ✓    | Settings table, text parse and format |
 | `storage.c`     | 0, 1 |      | Load at boot (core 0), save (core 1) |
-| `gfx.c`         | 1    | ✓    | 1-bit framebuffer in SSD1305 layout, 8×8 text |
+| `gfx.c`         | 1    | ✓    | 1-bit framebuffer in SSD1305 layout, 8×8 text, fills, sprites |
 | `ui.c`          | 1    | ✓    | Draws the three-row screen from a snapshot |
+| `splash.c`      | 1    | ✓    | Start-up animation; sprites in `splash_sprites.h`, generated from `assets/splash/` |
 | `display.c`     | 1    |      | SSD1305 init and DMA frame transfer |
 | `main.c`        | 0, 1 |      | Start-up, both core loops, hand-over |
 
@@ -104,6 +106,13 @@ Hardware-independent modules are also built into the host tests (`test/`);
 - The fixed-rate loop with `sleep_until`, the new default brightness and
   explicit pad setup (`keys.pull`, which also clears the power-on
   pull-downs) take care of legacy issues #9, #10, #12 and #13.
+- **Start-up animation:** 34 frames at 20 fps (1.7 s), drawn from sprites
+  with the positions of `assets/splash/reference.gif`, centred on larger
+  displays. It starts once the display answers, so it isn't lost while the
+  display powers up, and ends early if the UI state changes. Keys play
+  normally meanwhile. A host test checks every frame against the GIF.
+  Sprites are stored as one 32-bit mask per column, so drawing one at any
+  position is a shift and an OR per column and page.
 - **Expression pedal (planned):** sampled at the scan rate, low-pass
   filtered, mapped through min/max calibration to 0–127 and sent as CC11
   only when the value changes by more than a hysteresis threshold.

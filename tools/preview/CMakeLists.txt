@@ -13,6 +13,7 @@ add_executable(preview
     ${SRC}/gfx.c
     ${SRC}/keyboard.c
     ${SRC}/notes.c
+    ${SRC}/splash.c
     ${SRC}/ui.c
 )
 target_include_directories(preview PRIVATE ${SRC})

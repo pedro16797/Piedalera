@@ -16,6 +16,7 @@ add_executable(tests
     ${SRC}/notes.c
     ${SRC}/octave.c
     ${SRC}/settings.c
+    ${SRC}/splash.c
     ${SRC}/ui.c
 )
 target_include_directories(tests PRIVATE ${SRC})

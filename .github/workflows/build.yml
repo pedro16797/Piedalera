@@ -22,6 +22,16 @@ jobs:
           cmake --build build-test
           ctest --test-dir build-test --output-on-failure
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Generated files are current
+        run: |
+          pip install --quiet pillow
+          python3 tools/sprites.py
+          git diff --exit-code src/splash_sprites.h
+
   preview:
     runs-on: ubuntu-24.04
     steps:

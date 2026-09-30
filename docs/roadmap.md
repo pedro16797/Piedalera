@@ -36,7 +36,9 @@ Reproduces `legacy/main.py` in C with the bugs in
 
 ## 3. New features
 
+- [x] Start-up animation
 - [ ] Display animations for notes, octave shifts, chord changes and mode changes
+- [ ] Keyboard view and icons (brightness bulb, transpose ♭/♯) on the display
 - [ ] Expression pedal on GP28 / ADC2 (CC11, calibration)
 - [ ] Instrument presets (`instList` from the older `Piedalera.py`, with
   0-based program numbers)

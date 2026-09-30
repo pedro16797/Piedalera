@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #define GFX_MAX_WIDTH   128
@@ -12,8 +13,20 @@ typedef struct {
     uint8_t buf[GFX_MAX_WIDTH * GFX_MAX_HEIGHT / 8];
 } gfx_t;
 
+// Monochrome image, one 32-bit mask per column with bit 0 on top
+typedef struct {
+    uint8_t width, height;
+    const uint32_t *cols;
+} sprite_t;
+
 void gfx_init(gfx_t *g, uint8_t width, uint8_t height);
 void gfx_clear(gfx_t *g);
+
+// Set (on) or clear a rectangle, clipped to the screen
+void gfx_fill(gfx_t *g, int x, int y, int w, int h, bool on);
+
+// Draw a sprite's lit pixels at any position, clipped to the screen
+void gfx_blit(gfx_t *g, const sprite_t *s, int x, int y);
 
 // 8x8 text; x and y can be anything, off-screen parts are clipped
 void gfx_text(gfx_t *g, int x, int y, const char *str);

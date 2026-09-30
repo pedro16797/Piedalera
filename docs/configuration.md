@@ -35,6 +35,7 @@ reset to the default by the firmware.
 | `display.height`     | 32      | 32–64, multiple of 8 | Display height in pixels |
 | `display.col_offset` | 4       | 0–4                | First visible RAM column; width + offset ≤ 132 |
 | `display.brightness` | 15      | 0–255              | Display contrast |
+| `display.splash`     | true    | true / false       | Play the start-up animation |
 | `midi.channel`       | 1       | 1–16               | MIDI channel for all messages |
 | `midi.velocity`      | 95      | 1–127              | Note-on velocity |
 | `midi.transpose`     | 0       | −12–12             | Semitones added to every note |

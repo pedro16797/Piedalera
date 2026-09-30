@@ -8,6 +8,7 @@
 #include "pico/bootrom.h"
 #include "pico/multicore.h"
 #include "settings.h"
+#include "splash.h"
 #include "ui.h"
 
 #define SCAN_PERIOD_US      1000
@@ -47,6 +48,13 @@ static void core1_main(void) {
     uint32_t seen = 0;
     bool redraw = true;
     uint32_t retry_at = 0;
+
+    // The splash starts once the display answers and ends early if the UI
+    // changes (a button was used)
+    bool splash = settings.display_splash;
+    bool splash_started = false;
+    uint32_t splash_at = 0, splash_version = 0;
+    int splash_frame = -1;
 
     gfx_init(&gfx, settings.display_width, settings.display_height);
     absolute_time_t next = get_absolute_time();
@@ -89,6 +97,25 @@ static void core1_main(void) {
                 sleep_until(next);
                 continue;
             }
+            redraw = true;
+        }
+
+        if (splash) {
+            if (!splash_started) {
+                splash_started = true;
+                splash_at = now;
+                splash_version = seen;
+            }
+            uint32_t t = now - splash_at;
+            if (seen == splash_version && splash_draw(&gfx, t)) {
+                if ((int)(t / SPLASH_FRAME_MS) != splash_frame) {
+                    splash_frame = t / SPLASH_FRAME_MS;
+                    display_send(&gfx, st.brightness);
+                }
+                sleep_until(next);
+                continue;
+            }
+            splash = false;
             redraw = true;
         }
 

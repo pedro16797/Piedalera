@@ -21,6 +21,7 @@ add_executable(piedalera
     src/notes.c
     src/octave.c
     src/settings.c
+    src/splash.c
     src/storage.c
     src/ui.c
 )

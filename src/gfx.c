@@ -13,6 +13,42 @@ void gfx_clear(gfx_t *g) {
     memset(g->buf, 0, g->width * (g->height / 8));
 }
 
+void gfx_fill(gfx_t *g, int x, int y, int w, int h, bool on) {
+    int x0 = x < 0 ? 0 : x, x1 = x + w > g->width ? g->width : x + w;
+    int y0 = y < 0 ? 0 : y, y1 = y + h > g->height ? g->height : y + h;
+    for (int page = y0 >> 3; page < (y1 + 7) >> 3; page++) {
+        // Bits of this page inside [y0, y1)
+        int top = page * 8;
+        uint8_t mask = 0xFF;
+        if (y0 > top) mask &= 0xFF << (y0 - top);
+        if (y1 < top + 8) mask &= 0xFF >> (top + 8 - y1);
+        uint8_t *row = &g->buf[page * g->width];
+        for (int i = x0; i < x1; i++) {
+            row[i] = on ? row[i] | mask : row[i] & ~mask;
+        }
+    }
+}
+
+void gfx_blit(gfx_t *g, const sprite_t *s, int x, int y) {
+    int pages = g->height / 8;
+    for (int i = 0; i < s->width; i++) {
+        int col = x + i;
+        if (col < 0 || col >= g->width || !s->cols[i]) {
+            continue;
+        }
+        // Move the column to y, then take it a page at a time
+        for (int page = 0; page < pages; page++) {
+            int shift = y - page * 8;
+            if (shift >= 8 || shift <= -32) {
+                continue;
+            }
+            uint64_t bits = s->cols[i];
+            bits = shift >= 0 ? bits << shift : bits >> -shift;
+            g->buf[page * g->width + col] |= (uint8_t)bits;
+        }
+    }
+}
+
 static void column(gfx_t *g, int x, int y, uint8_t bits) {
     if (x < 0 || x >= g->width) {
         return;

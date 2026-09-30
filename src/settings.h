@@ -10,6 +10,7 @@ typedef struct {
     uint8_t display_height;
     uint8_t display_col_offset;
     uint8_t display_brightness;
+    bool display_splash;
     uint8_t midi_channel;       // 1-16
     uint8_t midi_velocity;
     int8_t midi_transpose;

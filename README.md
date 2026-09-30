@@ -21,11 +21,13 @@ This repository reworks it in C on top of the
 ├── CMakeLists.txt       Pico SDK build
 ├── .github/workflows/   CI: builds the UF2 files, runs the host tests
 ├── src/                 C firmware (see docs/architecture.md)
+├── assets/splash/       Start-up animation sprites and reference GIF
 ├── test/                Host tests for the hardware-independent modules
 ├── config/
 │   └── piedalera.ini    Default settings
 ├── tools/
 │   ├── config2uf2.py    Turns a settings file into a flashable UF2
+│   ├── sprites.py       Converts assets/splash/ into src/splash_sprites.h
 │   └── preview/         Renders the display on the computer
 ├── hardware/
 │   └── picorgano/       KiCad project of the Picórgano board, schematic PDF

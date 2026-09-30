@@ -10,6 +10,7 @@
 #include "config_mode.h"
 #include "gfx.h"
 #include "midi.h"
+#include "splash.h"
 #include "ui.h"
 
 // ui.c pulls in the chord table from keyboard.c, which needs a MIDI output
@@ -24,6 +25,7 @@ typedef struct {
     uint32_t duration_ms;   // 0: a single still frame
     uint16_t fps;
     void (*state)(ui_state_t *st, uint32_t t_ms);
+    bool (*draw)(gfx_t *g, uint32_t t_ms);  // instead of state + ui_render
 } scene_t;
 
 static void base(ui_state_t *st) {
@@ -82,23 +84,18 @@ static void config_bootsel(ui_state_t *st, uint32_t t) {
     st->msg = CONFIG_MSG_BOOTSEL;
 }
 
-// Shows playback works; replace with real animations as they are written
-static void octave_sweep(ui_state_t *st, uint32_t t) {
-    base(st);
-    st->octave = (t / 500) % 8;
-}
 
 // Add a scene for every screen or animation being worked on
 static const scene_t SCENES[] = {
-    { "normal",           0,    0,  normal },
-    { "chord",            0,    0,  chord },
-    { "chord-hold",       0,    0,  chord_hold },
-    { "config",           0,    0,  config_title },
-    { "config-velocity",  0,    0,  config_velocity },
-    { "config-transpose", 0,    0,  config_transpose },
-    { "config-debounce",  0,    0,  config_debounce },
-    { "config-bootsel",   0,    0,  config_bootsel },
-    { "octave-sweep",     4000, 30, octave_sweep },
+    { "normal",           0,    0,  normal, NULL },
+    { "chord",            0,    0,  chord, NULL },
+    { "chord-hold",       0,    0,  chord_hold, NULL },
+    { "config",           0,    0,  config_title, NULL },
+    { "config-velocity",  0,    0,  config_velocity, NULL },
+    { "config-transpose", 0,    0,  config_transpose, NULL },
+    { "config-debounce",  0,    0,  config_debounce, NULL },
+    { "config-bootsel",   0,    0,  config_bootsel, NULL },
+    { "splash", SPLASH_FRAMES * SPLASH_FRAME_MS, 1000 / SPLASH_FRAME_MS, NULL, splash_draw },
 };
 
 #define SCENE_COUNT (sizeof(SCENES) / sizeof(SCENES[0]))
@@ -180,20 +177,30 @@ static void write_png(const char *path, const uint8_t *rgb, int w, int h) {
 }
 
 // Scaled-up OLED look: lit pixels in the panel colour, a thin gap between
-// pixels, dark background
-#define PNG_SCALE 4
+// pixels, dark background. Animations become a grid of frames.
+#define PNG_SCALE   4
+#define PNG_COLS    4
+#define PNG_BORDER  8
 
-static void frame_png(const char *path, const gfx_t *g) {
-    int w = g->width * PNG_SCALE, h = g->height * PNG_SCALE;
+static void frames_png(const char *path, uint8_t *const *bufs, int n,
+                       int width, int height) {
+    int cols = n < PNG_COLS ? n : PNG_COLS, rows = (n + cols - 1) / cols;
+    int fw = width * PNG_SCALE, fh = height * PNG_SCALE;
+    int w = cols * fw + (cols - 1) * PNG_BORDER;
+    int h = rows * fh + (rows - 1) * PNG_BORDER;
     uint8_t *rgb = malloc((size_t)w * h * 3);
-    for (int y = 0; y < h; y++) {
-        for (int x = 0; x < w; x++) {
-            int px = x / PNG_SCALE, py = y / PNG_SCALE;
-            bool on = g->buf[(py >> 3) * g->width + px] >> (py & 7) & 1;
-            bool gap = x % PNG_SCALE == PNG_SCALE - 1 || y % PNG_SCALE == PNG_SCALE - 1;
-            uint8_t *p = rgb + ((size_t)y * w + x) * 3;
-            if (on && !gap) { p[0] = 0xE8; p[1] = 0xF0; p[2] = 0xFF; }
-            else            { p[0] = 0x0B; p[1] = 0x0D; p[2] = 0x12; }
+    memset(rgb, 0x40, (size_t)w * h * 3);
+    for (int i = 0; i < n; i++) {
+        int x0 = (i % cols) * (fw + PNG_BORDER), y0 = (i / cols) * (fh + PNG_BORDER);
+        for (int y = 0; y < fh; y++) {
+            for (int x = 0; x < fw; x++) {
+                int px = x / PNG_SCALE, py = y / PNG_SCALE;
+                bool on = bufs[i][(py >> 3) * width + px] >> (py & 7) & 1;
+                bool gap = x % PNG_SCALE == PNG_SCALE - 1 || y % PNG_SCALE == PNG_SCALE - 1;
+                uint8_t *p = rgb + ((size_t)(y0 + y) * w + x0 + x) * 3;
+                if (on && !gap) { p[0] = 0xE8; p[1] = 0xF0; p[2] = 0xFF; }
+                else            { p[0] = 0x0B; p[1] = 0x0D; p[2] = 0x12; }
+            }
         }
     }
     write_png(path, rgb, w, h);
@@ -250,19 +257,27 @@ int main(int argc, char **argv) {
         const scene_t *sc = &SCENES[s];
         uint32_t frames = sc->duration_ms ? sc->duration_ms * sc->fps / 1000 : 1;
         fprintf(html, "  { name: \"%s\", fps: %u, frames: [\n", sc->name, sc->fps);
+        uint8_t **bufs = malloc(frames * sizeof(*bufs));
         for (uint32_t f = 0; f < frames; f++) {
-            ui_state_t st;
-            sc->state(&st, sc->fps ? f * 1000 / sc->fps : 0);
-            ui_render(&g, &st);
+            uint32_t t = sc->fps ? f * 1000 / sc->fps : 0;
+            if (sc->draw) {
+                sc->draw(&g, t);
+            } else {
+                ui_state_t st;
+                sc->state(&st, t);
+                ui_render(&g, &st);
+            }
             fputs("    \"", html);
             for (size_t i = 0; i < bytes; i++) fprintf(html, "%02x", g.buf[i]);
             fputs("\",\n", html);
-            if (f == 0) {
-                char png[1024];
-                snprintf(png, sizeof(png), "%s/%s.png", out_dir, sc->name);
-                frame_png(png, &g);
-            }
+            bufs[f] = malloc(bytes);
+            memcpy(bufs[f], g.buf, bytes);
         }
+        char png[1024];
+        snprintf(png, sizeof(png), "%s/%s.png", out_dir, sc->name);
+        frames_png(png, bufs, frames, width, height);
+        for (uint32_t f = 0; f < frames; f++) free(bufs[f]);
+        free(bufs);
         fputs("  ] },\n", html);
     }
     fputs("] }", html);
