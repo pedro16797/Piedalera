@@ -10,6 +10,7 @@ set(SRC ${CMAKE_CURRENT_SOURCE_DIR}/../../src)
 
 add_executable(preview
     preview.c
+    ${SRC}/battery.c
     ${SRC}/config_mode.c
     ${SRC}/gfx.c
     ${SRC}/keyboard.c

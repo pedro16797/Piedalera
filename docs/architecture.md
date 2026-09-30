@@ -28,7 +28,8 @@ the drawing modules also run in the display preview (`tools/preview`).
 | `input.c`       | 0    |      | GPIO setup, one read of all inputs |
 | `debounce.c`    | 0    | ✓    | Per-input debounce |
 | `midi.c`        | 0    |      | UART at 31250 baud, ring buffer drained by the TX interrupt |
-| `power.c`       | 0    |      | 48 MHz system clock, dormant sleep |
+| `power.c`       | 0    |      | 48 MHz system clock, dormant sleep, VSYS reading |
+| `battery.c`     | –    | ✓    | Battery types and discharge curves |
 | `notes.c`       | 0    | ✓    | Note on/off with a count per note, power-up panic |
 | `keyboard.c`    | 0    | ✓    | Normal and chord mode, chord table |
 | `octave.c`      | 0    | ✓    | Octave buttons, auto-repeat, both-buttons gesture |
@@ -87,6 +88,11 @@ the drawing modules also run in the display preview (`tools/preview`).
   usual, a few ms late. The timer stands still while dormant, so after
   waking core 0 waits 100 ms for a press before sleeping again. If core 1
   doesn't park within 200 ms, core 0 tries again a second later.
+- **Battery:** once a second at full speed, core 0 averages 16 ADC
+  samples of VSYS/3 (GPIO29), adds `power.drop_mv` for the supply diode and
+  smooths it over about 8 readings. The charge comes from a per-cell
+  discharge curve for `power.battery`. Battery changes in the snapshot don't
+  count as input for dimming.
 - **Idle:** with no snapshot change for `display.dim_s` the contrast drops
   to a quarter, and after `display.off_s` the panel sleeps (0xAE) until the
   next change.

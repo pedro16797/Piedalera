@@ -14,6 +14,7 @@ typedef enum {
     CONFIG_MSG_TRANSPOSE,
     CONFIG_MSG_DEBOUNCE,
     CONFIG_MSG_BOOTSEL,
+    CONFIG_MSG_BATTERY,
 } config_msg_t;
 
 typedef enum {
@@ -28,6 +29,9 @@ typedef enum {
 #define KEY_BOOTSEL         19
 #define BOOTSEL_SHOW_MS     100
 #define BOOTSEL_HOLD_MS     1000
+
+// With a battery set up, this key (F') shows its charge and voltage
+#define KEY_BATTERY         17
 
 // A setting's screen goes back to the map after this long untouched; the
 // last CONFIG_IDLE_BORDER_MS show on the border

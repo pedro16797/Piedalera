@@ -20,6 +20,7 @@
 #define BOOTSEL_SHOW_WAIT_MS 50     // for the last frame to be drawn
 #define FRAME_SEND_MS       13      // I2C transfer of a 128x32 frame
 #define DIM_DIVISOR         4       // idle contrast is brightness / this
+#define BATTERY_READ_MS     1000
 #define PARK_WAIT_MS        200     // for core 1 to finish a frame and park
 #define WAKE_GRACE_MS       100     // to see the press that woke it
 #define SLEEP_RETRY_MS      1000
@@ -260,6 +261,7 @@ int main(void) {
     debounce_t debounce;
     debounce_init(&debounce, input_read());
     absolute_time_t next = get_absolute_time();
+    uint32_t battery_at = 0;
     uint32_t retry_at = 0;      // next time to check whether to sleep
 
     while (true) {
@@ -276,6 +278,10 @@ int main(void) {
             app_idle_ms(now) >= settings.power_sleep_s * 1000u) {
             retry_at = now + (deep_sleep() ? WAKE_GRACE_MS : SLEEP_RETRY_MS);
             next = get_absolute_time();
+        }
+        if (now - battery_at >= BATTERY_READ_MS) {
+            battery_at = now;
+            app_battery(power_vsys_mv());
         }
 
         app_ui_state(&ui);

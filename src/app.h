@@ -14,6 +14,9 @@ void app_update(const input_state_t *in, uint32_t now_ms);
 
 void app_ui_state(ui_state_t *out);
 
+// A new VSYS reading; the battery voltage and charge follow it smoothly
+void app_battery(uint32_t vsys_mv);
+
 // Time since an input was last held or released
 uint32_t app_idle_ms(uint32_t now_ms);
 

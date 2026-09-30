@@ -19,6 +19,11 @@ typedef struct {
     int16_t msg_value;
     uint8_t brightness;
     uint8_t progress;   // of a key hold towards an action, 0-255
+    bool battery;           // running on batteries: show the gauge
+    uint8_t battery_level;  // 0-255
+    uint8_t battery_type;   // battery_t
+    uint8_t battery_cells;
+    uint16_t battery_mv;
 } ui_state_t;
 
 // Transitions played over the snapshots, and when an input last changed
@@ -33,6 +38,8 @@ typedef struct {
 
 #define UI_BANNER_MS    800
 #define UI_SLIDE_MS     150
+#define UI_BLINK_MS     500
+#define UI_BATTERY_LOW  24      // level below which the gauge warns
 
 // Notes what changed since the previous snapshot
 void ui_anim_update(ui_anim_t *a, const ui_state_t *st, uint32_t now_ms);

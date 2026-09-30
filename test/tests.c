@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "app.h"
+#include "battery.h"
 #include "config_mode.h"
 #include "gfx.h"
 #include "input.h"
@@ -95,6 +96,7 @@ static void test_settings(void) {
     s.keys_pull = PULL_UP;
     s.keys_active_low = false;
     s.octave_delay_ms = 800;
+    s.power_battery = BATTERY_NIMH;
     settings_format(&s, out, sizeof(out));
     settings_t back;
     CHECK(settings_parse(&back, out, sizeof(out)));
@@ -483,6 +485,62 @@ static bool lit(const gfx_t *g, int x0, int y0, int x1, int y1) {
     return false;
 }
 
+// Battery
+
+static void test_battery(void) {
+    // Charge along each curve, per cell
+    CHECK(battery_level(BATTERY_LIION, 1, 4200) == 255);
+    CHECK(battery_level(BATTERY_LIION, 1, 3800) == 102);         // 40 %
+    CHECK(battery_level(BATTERY_LIION, 1, 3200) == 0);
+    CHECK(battery_level(BATTERY_NIMH, 3, 3600) == 63);          // 25 %
+    CHECK(battery_level(BATTERY_NONE, 3, 4000) == 0);
+    CHECK(!strcmp(battery_label(BATTERY_ALKALINE), "Alk."));
+
+    // The reading adds the diode drop and is smoothed
+    settings_defaults(&s);
+    s.power_battery = BATTERY_NIMH;
+    s.power_cells = 3;
+    memset(&in, 0, sizeof(in));
+    app_init(&s);
+    ui_state_t ui;
+    app_ui_state(&ui);
+    CHECK(!ui.battery);                     // until the first reading
+    app_battery(3300);
+    app_ui_state(&ui);
+    CHECK(ui.battery && ui.battery_mv == 3600 && ui.battery_cells == 3);
+    app_battery(3380);
+    app_ui_state(&ui);
+    CHECK(ui.battery_mv == 3610);
+
+    // F' opens the battery page from the config map, G' goes back
+    const uint32_t both = INPUT_BIT(INPUT_OCT_UP) | INPUT_BIT(INPUT_OCT_DOWN);
+    for (uint32_t t = 0; t <= 1000; t += 10) tick(both, t);
+    tick(0, 1100);
+    tick(INPUT_BIT(KEY_BATTERY), 1200);
+    tick(0, 1300);
+    app_ui_state(&ui);
+    CHECK(ui.config && ui.msg == CONFIG_MSG_BATTERY);
+    tick(INPUT_BIT(KEY_BOOTSEL), 1400);
+    tick(0, 1500);
+    app_ui_state(&ui);
+    CHECK(ui.config && ui.msg == CONFIG_MSG_TITLE);
+
+    // Without a battery F' just leaves, as any other key
+    s.power_battery = BATTERY_NONE;
+    tick(INPUT_BIT(KEY_BATTERY), 1600);
+    tick(0, 1700);
+    app_ui_state(&ui);
+    CHECK(!ui.config);
+
+    // A new reading isn't input, so the screen still dims
+    ui_anim_t a = { 0 };
+    ui_anim_update(&a, &ui, 0);
+    ui.battery_mv += 10;
+    ui.battery_level++;
+    ui_anim_update(&a, &ui, 5000);
+    CHECK(ui_idle_ms(&a, 5000) == 5000);
+}
+
 static void test_ui(void) {
     static gfx_t g;
     gfx_init(&g, 128, 32);
@@ -547,6 +605,33 @@ static void test_ui(void) {
     CHECK(lit(&g, 64, 23, 72, 32) && !lit(&g, 64, 14, 72, 23));
     CHECK(ui_idle_ms(&a, 5000) == 2000);
 
+    // Battery page: voltage left of the column, type above the charge bar
+    st = (ui_state_t){ .config = true, .msg = CONFIG_MSG_BATTERY, .root = -1, .battery = true,
+                       .battery_level = 128, .battery_mv = 4120, .battery_type = BATTERY_LIION,
+                       .battery_cells = 1 };
+    ui_render(&g, &st, NULL, 0);
+    CHECK(lit(&g, 0, 14, 64, 28) && lit(&g, 64, 13, 128, 21) && pixel(&g, 64, 23));
+
+    // Battery: only on the config map, filling from the bottom; nearly empty
+    // it blinks an exclamation mark, so frames keep coming
+    st = (ui_state_t){ .octave = 3, .root = -1, .battery = true, .battery_level = 255 };
+    ui_render(&g, &st, NULL, 0);
+    CHECK(!lit(&g, 100, 13, 114, 32));                  // not while playing
+    st.config = true;
+    ui_render(&g, &st, NULL, 0);
+    CHECK(lit(&g, 107, 19, 110, 21));                   // full to the top
+    st.battery_level = 30;
+    ui_render(&g, &st, NULL, 0);
+    CHECK(!lit(&g, 107, 19, 110, 20));
+    st.battery_level = 10;
+    ui_anim_t b = { 0 };
+    ui_anim_update(&b, &st, 0);
+    CHECK(ui_anim_running(&b, 0));
+    ui_render(&g, &st, &b, 0);
+    CHECK(lit(&g, 107, 19, 110, 22));                   // "!" on
+    ui_render(&g, &st, &b, UI_BLINK_MS);
+    CHECK(!lit(&g, 107, 19, 110, 22));                  // and off
+
     // Text at y = 12 straddles pages 1 and 2
     gfx_clear(&g);
     gfx_text(&g, 0, 12, "|");
@@ -606,6 +691,7 @@ int main(void) {
     test_hold();
     test_octave();
     test_app();
+    test_battery();
     test_ui();
     test_splash();
     if (failures) {

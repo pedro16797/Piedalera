@@ -1,6 +1,7 @@
 #include <string.h>
 
 #include "app.h"
+#include "battery.h"
 #include "config_mode.h"
 #include "keyboard.h"
 #include "notes.h"
@@ -18,6 +19,7 @@ static uint32_t save_at;
 static uint32_t pressed;    // last debounced inputs, for the screen
 static uint8_t progress;    // of the current key hold, for the screen
 static uint32_t input_at;   // last time an input was held or released
+static uint32_t battery_mv; // filtered, 0 until the first reading
 
 static void request_save(uint32_t now, uint32_t delay) {
     save_pending = true;
@@ -31,6 +33,7 @@ void app_init(settings_t *s) {
     pressed = 0;
     progress = 0;
     input_at = 0;
+    battery_mv = 0;
     save_pending = false;
     notes_init(s->midi_channel - 1);
     notes_panic();
@@ -137,11 +140,25 @@ void app_ui_state(ui_state_t *out) {
     out->config = config;
     out->brightness = settings->display_brightness;
     out->progress = progress;
+    if (settings->power_battery != BATTERY_NONE && battery_mv) {
+        out->battery = true;
+        out->battery_type = settings->power_battery;
+        out->battery_cells = settings->power_cells;
+        out->battery_mv = (battery_mv + 5) / 10 * 10;     // calmer on screen
+        out->battery_level = battery_level(settings->power_battery, settings->power_cells,
+                                           out->battery_mv);
+    }
     if (config) {
         int value;
         out->msg = config_mode_msg(&value);
         out->msg_value = value;
     }
+}
+
+void app_battery(uint32_t vsys_mv) {
+    uint32_t mv = vsys_mv + settings->power_drop_mv;
+    // Average over about 8 readings
+    battery_mv = battery_mv ? battery_mv + ((int32_t)mv - (int32_t)battery_mv) / 8 : mv;
 }
 
 uint32_t app_idle_ms(uint32_t now) {

@@ -45,6 +45,13 @@ E' to G' really are on pins 01, 03, 05, 07 in that order.
 - PWR1 feeds VSYS through a Schottky diode, so USB and the supply can be
   connected together. The display is powered from PWR1 before the diode, so
   it stays dark on USB power alone.
+- **Battery:** one 18650 Li-ion cell through a TC4056 charger module with
+  protection (DW01A): cell on B+/B−, OUT+/OUT− to PWR1, charged through the
+  module's USB socket, also while playing. The DW01A cuts the load at about
+  2.4 V; the firmware warns long before. A switch between OUT+ and PWR1
+  stops the ~1 mA drain in storage and still lets it charge. While charging,
+  the battery page shows the charging voltage. The display gets the cell
+  voltage directly, so check it still lights near 3.3 V.
 - MIDI goes out on UART0 TX (GP16). There is no MIDI in: GP17, UART0's RX,
   is the octave up button.
 - All four boards (Pico, Pico W, Pico 2, Pico 2 W) share this pin map. On a

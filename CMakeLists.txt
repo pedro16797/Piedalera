@@ -10,6 +10,7 @@ pico_sdk_init()
 
 add_executable(piedalera
     src/app.c
+    src/battery.c
     src/config_mode.c
     src/debounce.c
     src/display.c
@@ -34,6 +35,7 @@ target_compile_options(piedalera PRIVATE -Wall -Wextra -O2)
 target_link_libraries(piedalera
     pico_stdlib
     pico_multicore
+    hardware_adc
     hardware_dma
     hardware_flash
     hardware_i2c

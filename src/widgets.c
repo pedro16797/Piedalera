@@ -191,3 +191,16 @@ void widget_hold_border(gfx_t *g, uint8_t progress) {
         y += dy;
     }
 }
+
+void widget_battery(gfx_t *g, int x, int y, uint8_t level, bool warn) {
+    gfx_fill(g, x + 1, y, 3, 1, true);                          // cap
+    gfx_fill(g, x, y + 1, WIDGET_BATTERY_W, WIDGET_BATTERY_H - 1, true);
+    gfx_fill(g, x + 1, y + 2, WIDGET_BATTERY_W - 2, WIDGET_BATTERY_ROWS, false);
+    // Solid charge; any charge left shows a row
+    int rows = (level * WIDGET_BATTERY_ROWS + 254) / 255;
+    gfx_fill(g, x + 1, y + 2 + WIDGET_BATTERY_ROWS - rows, WIDGET_BATTERY_W - 2, rows, true);
+    if (warn) {
+        gfx_fill(g, x + 2, y + 2, 1, 3, true);                  // "!"
+        gfx_fill(g, x + 2, y + 6, 1, 1, true);
+    }
+}

@@ -26,6 +26,9 @@ typedef struct {
     uint8_t keys_pull;          // pull_t
     uint8_t keys_debounce_ms;
     uint16_t power_sleep_s;     // 0: never
+    uint8_t power_battery;      // battery_t
+    uint8_t power_cells;
+    uint16_t power_drop_mv;     // across the supply diode, added to VSYS
 } settings_t;
 
 #define SETTINGS_TEXT_MAX 4096

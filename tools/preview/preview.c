@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "battery.h"
 #include "config_mode.h"
 #include "gfx.h"
 #include "midi.h"
@@ -73,6 +74,24 @@ static void config_title(ui_state_t *st, uint32_t t) {
     base(st);
     st->config = true;
     st->msg = CONFIG_MSG_TITLE;
+}
+
+// Batteries draining a row at a time, then the blinking warning
+static void config_battery(ui_state_t *st, uint32_t t) {
+    config_title(st, t);
+    st->battery = true;
+    st->battery_level = t < 2400 ? 255 - t * 255 / 2400 : 10;
+}
+
+// F' held: the battery page, one Li-ion cell at about half charge
+static void config_battery_page(ui_state_t *st, uint32_t t) {
+    config_battery(st, t);
+    st->keys = KEY(17);
+    st->msg = CONFIG_MSG_BATTERY;
+    st->battery_type = BATTERY_LIION;
+    st->battery_cells = 1;
+    st->battery_mv = 3820;
+    st->battery_level = battery_level(BATTERY_LIION, 1, 3820);
 }
 
 static void config_brightness(ui_state_t *st, uint32_t t) {
@@ -158,6 +177,8 @@ static const scene_t SCENES[] = {
     { "chord",             0,    0,  chord, NULL },
     { "chord-hold",        0,    0,  chord_hold, NULL },
     { "config",            0,    0,  config_title, NULL },
+    { "config-battery",    4000, 5,  config_battery, NULL },
+    { "config-battery-page", 0,  0,  config_battery_page, NULL },
     { "config-brightness", 0,    0,  config_brightness, NULL },
     { "config-velocity",   0,    0,  config_velocity, NULL },
     { "config-transpose",  0,    0,  config_transpose, NULL },

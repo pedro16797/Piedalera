@@ -39,5 +39,9 @@ void gfx_text_clipped(gfx_t *g, int x, int y, const char *str, int top, int bott
 // Same, each font pixel drawn as scale x scale
 void gfx_text_scaled(gfx_t *g, int x, int y, const char *str, int scale);
 
+// Scaled text with each character as wide as its ink and gap pixels apart;
+// returns the width drawn. g may be NULL to only measure.
+int gfx_text_ink(gfx_t *g, int x, int y, const char *str, int scale, int gap);
+
 // Scaled text with characters advance pixels apart instead of 8 * scale
 void gfx_text_spaced(gfx_t *g, int x, int y, const char *str, int scale, int advance);

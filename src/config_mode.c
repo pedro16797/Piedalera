@@ -1,3 +1,4 @@
+#include "battery.h"
 #include "config_mode.h"
 #include "midi.h"
 
@@ -110,6 +111,11 @@ config_result_t config_mode_update(const input_state_t *in, uint32_t now) {
         }
     }
 
+    if ((down & INPUT_BIT(KEY_BATTERY)) && settings->power_battery != BATTERY_NONE) {
+        down &= ~INPUT_BIT(KEY_BATTERY);
+        msg = CONFIG_MSG_BATTERY;
+    }
+
     // Any other key: leave when it is released
     if (down && exit_key == NO_KEY) {
         exit_key = __builtin_ctz(down);
@@ -144,8 +150,8 @@ bool config_mode_changed(void) {
 }
 
 bool config_mode_keys(config_msg_t msg, uint8_t *down, uint8_t *up) {
-    if (msg == CONFIG_MSG_BOOTSEL) {
-        *down = *up = KEY_BOOTSEL;
+    if (msg == CONFIG_MSG_BOOTSEL || msg == CONFIG_MSG_BATTERY) {
+        *down = *up = msg == CONFIG_MSG_BOOTSEL ? KEY_BOOTSEL : KEY_BATTERY;
         return true;
     }
     bool found = false;

@@ -54,6 +54,9 @@ SCHEMA = {
     "keys.pull":          ("up", "down", "none"),
     "keys.debounce_ms":   (0, 50),
     "power.sleep_s":      (0, 7200),
+    "power.battery":      ("none", "alkaline", "nimh", "li-ion"),
+    "power.cells":        (1, 4),
+    "power.drop_mv":      (0, 1000),
 }
 
 
