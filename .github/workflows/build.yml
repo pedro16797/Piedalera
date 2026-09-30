@@ -11,6 +11,17 @@ env:
   PICO_SDK_VERSION: "2.3.1"
 
 jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Host tests
+        run: |
+          cmake -S test -B build-test
+          cmake --build build-test
+          ctest --test-dir build-test --output-on-failure
+
   build:
     runs-on: ubuntu-24.04
     strategy:
@@ -69,7 +80,7 @@ jobs:
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs: [test, build]
     runs-on: ubuntu-24.04
     permissions:
       contents: write

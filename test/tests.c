@@ -1,0 +1,436 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "app.h"
+#include "config_mode.h"
+#include "gfx.h"
+#include "input.h"
+#include "keyboard.h"
+#include "midi.h"
+#include "notes.h"
+#include "octave.h"
+#include "settings.h"
+#include "ui.h"
+
+static int failures;
+
+#define CHECK(cond) do { \
+    if (!(cond)) { \
+        printf("%s:%d: CHECK(%s) failed\n", __FILE__, __LINE__, #cond); \
+        failures++; \
+    } \
+} while (0)
+
+// Fake MIDI: records messages as "on 48 95", "off 48", "cc 123 0"
+
+static char sent[64][24];
+static int sent_count;
+
+static char *next_slot(uint8_t ch) {
+    CHECK(ch == 0);
+    CHECK(sent_count < 64);
+    return sent[sent_count < 63 ? sent_count++ : 63];
+}
+
+void midi_note_on(uint8_t ch, uint8_t note, uint8_t velocity) {
+    snprintf(next_slot(ch), sizeof(sent[0]), "on %d %d", note, velocity);
+}
+
+void midi_note_off(uint8_t ch, uint8_t note) {
+    snprintf(next_slot(ch), sizeof(sent[0]), "off %d", note);
+}
+
+void midi_cc(uint8_t ch, uint8_t cc, uint8_t value) {
+    snprintf(next_slot(ch), sizeof(sent[0]), "cc %d %d", cc, value);
+}
+
+static void clear_sent(void) {
+    sent_count = 0;
+}
+
+// Checks the recorded messages against a NULL-terminated list, then clears
+static void expect(const char *const *want, int line) {
+    int n = 0;
+    while (want[n]) n++;
+    bool ok = n == sent_count;
+    for (int i = 0; ok && i < n; i++) {
+        ok = strcmp(want[i], sent[i]) == 0;
+    }
+    if (!ok) {
+        printf("line %d: expected", line);
+        for (int i = 0; i < n; i++) printf(" [%s]", want[i]);
+        printf(", got");
+        for (int i = 0; i < sent_count; i++) printf(" [%s]", sent[i]);
+        printf("\n");
+        failures++;
+    }
+    clear_sent();
+}
+
+#define EXPECT(...) expect((const char *const[]){ __VA_ARGS__, NULL }, __LINE__)
+#define EXPECT_NONE() expect((const char *const[]){ NULL }, __LINE__)
+
+// Settings
+
+static void test_settings(void) {
+    settings_t s, d;
+    settings_defaults(&d);
+
+    // Firmware defaults match config/piedalera.ini
+    FILE *f = fopen(DEFAULT_INI, "r");
+    CHECK(f);
+    static char text[4096] = "# piedalera-config v1\n";
+    size_t len = strlen(text);
+    len += fread(text + len, 1, sizeof(text) - len - 1, f);
+    fclose(f);
+    CHECK(settings_parse(&s, text, len));
+    CHECK(memcmp(&s, &d, sizeof(s)) == 0);
+
+    // Round trip
+    char out[SETTINGS_TEXT_MAX];
+    s.midi_transpose = -7;
+    s.keys_pull = PULL_UP;
+    s.keys_active_low = false;
+    s.octave_delay_ms = 800;
+    settings_format(&s, out, sizeof(out));
+    settings_t back;
+    CHECK(settings_parse(&back, out, sizeof(out)));
+    CHECK(memcmp(&s, &back, sizeof(s)) == 0);
+
+    // Missing header: all defaults
+    const char *bad = "midi.velocity = 10\n";
+    CHECK(!settings_parse(&s, bad, strlen(bad)));
+    CHECK(s.midi_velocity == d.midi_velocity);
+
+    // Invalid values keep their default, comments and spaces are fine
+    const char *mixed =
+        "# piedalera-config v1\n"
+        "midi.velocity = 0\n"
+        "  midi.transpose=-3   # comment\n"
+        "keys.pull = sideways\n"
+        "display.width = 128\n"
+        "display.col_offset = 4\n"
+        "octave.min = 2\n"
+        "octave.current = 1\n"
+        "unknown.key = 5\n";
+    CHECK(settings_parse(&s, mixed, strlen(mixed)));
+    CHECK(s.midi_velocity == d.midi_velocity);
+    CHECK(s.midi_transpose == -3);
+    CHECK(s.keys_pull == d.keys_pull);
+    CHECK(s.octave_min == 2 && s.octave_current == 2);
+
+    // Heights must fill whole pages; the octave delay stays under 1 s
+    const char *limits =
+        "# piedalera-config v1\n"
+        "display.height = 60\n"
+        "octave.delay_ms = 1500\n";
+    CHECK(settings_parse(&s, limits, strlen(limits)));
+    CHECK(s.display_height == d.display_height);
+    CHECK(s.octave_delay_ms == d.octave_delay_ms);
+
+    // Erased flash
+    char erased[16];
+    memset(erased, 0xFF, sizeof(erased));
+    CHECK(!settings_parse(&s, erased, sizeof(erased)));
+}
+
+// Debounce
+
+static void test_debounce(void) {
+    debounce_t d;
+    debounce_init(&d, 0);
+    input_state_t st = debounce_update(&d, 1, 0, 5);
+    CHECK(st.pressed == 0 && st.down == 0);
+    debounce_update(&d, 0, 2, 5);       // bounce restarts the count
+    debounce_update(&d, 1, 3, 5);
+    st = debounce_update(&d, 1, 7, 5);
+    CHECK(st.pressed == 0);
+    st = debounce_update(&d, 1, 8, 5);
+    CHECK(st.pressed == 1 && st.down == 1);
+    st = debounce_update(&d, 1, 9, 5);
+    CHECK(st.down == 0);
+    st = debounce_update(&d, 0, 10, 0); // no debounce: immediate
+    CHECK(st.pressed == 0 && st.up == 1);
+}
+
+// Keyboard
+
+static settings_t s;
+
+static void setup(void) {
+    settings_defaults(&s);
+    notes_init(0);
+    keyboard_init(&s);
+    clear_sent();
+}
+
+static void test_normal(void) {
+    setup();
+    keyboard_press(0, 3);
+    EXPECT("on 48 95");
+    keyboard_release(0, 5);                 // note-off uses the press octave
+    EXPECT("off 48");
+
+    s.midi_transpose = 2;
+    keyboard_press(19, 3);
+    EXPECT("on 69 95");
+    keyboard_release(19, 3);
+    EXPECT("off 69");
+
+    // Out of range notes are dropped
+    s.midi_transpose = 12;
+    keyboard_press(19, 8);
+    keyboard_release(19, 8);
+    EXPECT_NONE();
+
+    // Same note from two keys: off only after both are released
+    s.midi_transpose = 0;
+    keyboard_press(12, 2);
+    keyboard_press(0, 3);
+    EXPECT("on 48 95", "on 48 95");
+    keyboard_release(12, 2);
+    EXPECT_NONE();
+    keyboard_release(0, 3);
+    EXPECT("off 48");
+
+    // Keys held through a reset are ignored until pressed again
+    keyboard_press(4, 3);
+    keyboard_reset();
+    EXPECT("on 52 95", "off 52");
+    keyboard_release(4, 3);
+    EXPECT_NONE();
+}
+
+static void test_chords(void) {
+    setup();
+    keyboard_set_chord_mode(true);
+
+    keyboard_press(0, 3);                   // C major
+    EXPECT("on 48 95", "on 52 95", "on 55 95");
+    keyboard_press(5, 3);                   // F queued
+    EXPECT_NONE();
+    keyboard_press(15, 3);                  // minor, for the queued chord
+    keyboard_release(15, 3);
+    EXPECT_NONE();
+    keyboard_release(0, 4);                 // F minor starts, octave now 4
+    EXPECT("off 48", "off 52", "off 55", "on 65 95", "on 68 95", "on 72 95");
+    keyboard_release(5, 4);
+    EXPECT("off 65", "off 68", "off 72");
+
+    // A queued root released before its turn is dropped
+    keyboard_press(13, 3);                  // major
+    keyboard_release(13, 3);
+    keyboard_press(0, 3);
+    keyboard_press(7, 3);
+    keyboard_release(7, 3);
+    clear_sent();
+    keyboard_release(0, 3);
+    EXPECT("off 48", "off 52", "off 55");
+
+    // Latest press wins the queue
+    keyboard_press(0, 3);
+    keyboard_press(2, 3);
+    keyboard_press(4, 3);
+    clear_sent();
+    keyboard_release(0, 3);
+    EXPECT("off 48", "off 52", "off 55", "on 52 95", "on 56 95", "on 59 95");
+}
+
+static void test_hold(void) {
+    setup();
+    keyboard_set_chord_mode(true);
+    keyboard_press(KEY_HOLD, 3);
+    keyboard_release(KEY_HOLD, 3);
+    CHECK(keyboard_hold());
+
+    keyboard_press(0, 3);
+    keyboard_release(0, 3);
+    EXPECT("on 48 95", "on 52 95", "on 55 95");
+    keyboard_press(2, 3);                   // switches right away
+    EXPECT("off 48", "off 52", "off 55", "on 50 95", "on 54 95", "on 57 95");
+    keyboard_release(2, 3);
+    EXPECT_NONE();
+
+    keyboard_press(KEY_HOLD, 3);            // hold off stops the chord
+    EXPECT("off 50", "off 54", "off 57");
+    CHECK(!keyboard_hold());
+}
+
+// Octave buttons
+
+// Holds the buttons from t0 to t1 at the 1 kHz scan rate; returns the
+// time of each octave step
+static int hold_octave(bool up, bool down, uint32_t t0, uint32_t t1,
+                       uint32_t *steps) {
+    int n = 0;
+    for (uint32_t t = t0; t <= t1; t++) {
+        if (octave_update(up, down, t) == OCTAVE_CHANGED) {
+            steps[n++] = t;
+        }
+    }
+    return n;
+}
+
+static void test_octave(void) {
+    uint32_t steps[16];
+    settings_defaults(&s);
+    octave_init(&s);
+
+    // First step after the delay, then one per repeat interval
+    CHECK(hold_octave(true, false, 0, 1200, steps) == 3);
+    CHECK(steps[0] == 100 && steps[1] == 600 && steps[2] == 1100);
+    CHECK(s.octave_current == 6);
+    CHECK(hold_octave(true, false, 1201, 3000, steps) == 1);  // stops at max
+    CHECK(s.octave_current == 7);
+    octave_update(false, false, 3001);
+
+    // Repeat shorter than the delay
+    s.octave_delay_ms = 300;
+    s.octave_repeat_ms = 100;
+    CHECK(hold_octave(false, true, 4000, 4500, steps) == 3);
+    CHECK(steps[0] == 4300 && steps[1] == 4400 && steps[2] == 4500);
+    CHECK(s.octave_current == 4);
+    octave_update(false, false, 4501);
+    settings_defaults(&s);
+    s.octave_current = 6;
+
+    // Both buttons: toggle, then config
+    CHECK(octave_update(true, true, 4000) == OCTAVE_NONE);
+    CHECK(octave_update(true, true, 4100) == OCTAVE_TOGGLE_CHORD);
+    CHECK(octave_update(true, true, 4500) == OCTAVE_NONE);
+    CHECK(octave_update(true, true, 5000) == OCTAVE_ENTER_CONFIG_UNDO);
+    CHECK(octave_update(true, false, 5500) == OCTAVE_NONE);   // blocked
+    CHECK(octave_update(true, false, 6000) == OCTAVE_NONE);
+    octave_update(false, false, 6001);
+
+    // A button left over after a toggle doesn't step
+    octave_update(true, true, 7000);
+    CHECK(octave_update(true, true, 7100) == OCTAVE_TOGGLE_CHORD);
+    CHECK(octave_update(false, true, 7200) == OCTAVE_NONE);
+    CHECK(octave_update(false, true, 8000) == OCTAVE_NONE);
+    CHECK(s.octave_current == 6);
+}
+
+// App: config mode and saving
+
+static input_state_t in;
+
+static void tick(uint32_t pressed, uint32_t now) {
+    in.down = pressed & ~in.pressed;
+    in.up = in.pressed & ~pressed;
+    in.pressed = pressed;
+    app_update(&in, now);
+}
+
+static void test_app(void) {
+    settings_defaults(&s);
+    clear_sent();
+    memset(&in, 0, sizeof(in));
+    app_init(&s);
+    EXPECT("cc 123 0", "cc 120 0");
+
+    const uint32_t both = INPUT_BIT(INPUT_OCT_UP) | INPUT_BIT(INPUT_OCT_DOWN);
+    ui_state_t ui;
+
+    // Enter config: chord mode toggles at 100 ms and is undone at 1 s
+    for (uint32_t t = 0; t <= 1000; t += 10) {
+        tick(both, t);
+        app_ui_state(&ui);
+        if (t == 500) CHECK(ui.chord_mode);
+    }
+    app_ui_state(&ui);
+    CHECK(ui.config && !ui.chord_mode && ui.msg == CONFIG_MSG_TITLE);
+    tick(0, 1100);
+
+    // E: velocity down, auto-repeat after 200 ms then every 50 ms
+    uint32_t e = INPUT_BIT(4);
+    tick(e, 2000);
+    CHECK(s.midi_velocity == 94);
+    tick(e, 2199);
+    CHECK(s.midi_velocity == 94);
+    tick(e, 2200);
+    tick(e, 2250);
+    CHECK(s.midi_velocity == 92);
+    tick(0, 2300);
+
+    // G: bank down, sends bank select
+    tick(INPUT_BIT(7), 2400);
+    EXPECT("cc 0 121", "cc 32 11");
+    tick(0, 2500);
+
+    // Transpose clamps at +12
+    for (int i = 0; i < 20; i++) {
+        tick(INPUT_BIT(12), 3000 + i * 20);
+        tick(0, 3010 + i * 20);
+    }
+    CHECK(s.midi_transpose == 12);
+    app_ui_state(&ui);
+    CHECK(ui.msg == CONFIG_MSG_TRANSPOSE && ui.msg_value == 12);
+
+    // Any other key leaves on release and saves right away
+    tick(INPUT_BIT(1), 4000);
+    app_ui_state(&ui);
+    CHECK(ui.config);
+    tick(0, 4010);
+    app_ui_state(&ui);
+    CHECK(!ui.config);
+    CHECK(app_save_due(4010));
+    CHECK(!app_save_due(4011));
+
+    // Keys play again, with the new transpose and velocity
+    clear_sent();
+    tick(INPUT_BIT(0), 5000);
+    EXPECT("on 60 92");
+    tick(0, 5010);
+    clear_sent();
+
+    // Octave changes are saved after 5 s
+    tick(INPUT_BIT(INPUT_OCT_UP), 6000);
+    tick(INPUT_BIT(INPUT_OCT_UP), 6100);
+    tick(0, 6110);
+    CHECK(s.octave_current == 4);
+    CHECK(!app_save_due(11099));
+    CHECK(app_save_due(11100));
+}
+
+// Display
+
+static void test_ui(void) {
+    static gfx_t g;
+    gfx_init(&g, 128, 32);
+    ui_state_t st = { .octave = 3, .chord_mode = true, .chord = 2 };
+    ui_render(&g, &st);
+
+    // "O" of "Octava" at the top left, rows 0-7
+    CHECK(g.buf[1] != 0);
+    // Row 2 starts at y = 24: page 3 only
+    int page3 = 0;
+    for (int x = 0; x < 128; x++) page3 |= g.buf[3 * 128 + x];
+    CHECK(page3);
+
+    // Text at y = 12 straddles pages 1 and 2
+    gfx_clear(&g);
+    gfx_text(&g, 0, 12, "|");
+    CHECK(g.buf[1 * 128 + 3] == 0xF0 && g.buf[2 * 128 + 3] == 0x0F);
+    // Clipped text doesn't write out of bounds
+    gfx_text(&g, 120, 28, "WW");
+    gfx_text(&g, -4, -4, "W");
+}
+
+int main(void) {
+    test_settings();
+    test_debounce();
+    test_normal();
+    test_chords();
+    test_hold();
+    test_octave();
+    test_app();
+    test_ui();
+    if (failures) {
+        printf("%d failure(s)\n", failures);
+        return EXIT_FAILURE;
+    }
+    printf("all tests passed\n");
+    return EXIT_SUCCESS;
+}
