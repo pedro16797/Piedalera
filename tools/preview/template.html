@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Piedalera display preview</title>
+<style>
+  :root { --bg: #15171c; --panel: #1f2229; --text: #d9dce3; --muted: #8a90a0; --accent: #7aa2ff; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 14px/1.4 system-ui, sans-serif; display: flex; min-height: 100vh; }
+  nav { width: 200px; min-height: 100vh; padding: 16px; background: var(--panel); flex-shrink: 0; }
+  nav h1 { font-size: 15px; margin: 0 0 12px; }
+  nav button { display: block; width: 100%; text-align: left; margin: 2px 0; padding: 6px 8px;
+               border: 0; border-radius: 4px; background: none; color: var(--text); cursor: pointer; }
+  nav button:hover { background: #2a2e37; }
+  nav button.active { background: var(--accent); color: #0b0d12; }
+  nav .anim::after { content: " ▶"; color: var(--muted); }
+  nav button.active.anim::after { color: #0b0d12; }
+  main { flex: 1; padding: 24px; overflow: auto; }
+  .bezel { display: inline-block; padding: 14px; background: #050608; border-radius: 6px;
+           box-shadow: 0 0 0 1px #2a2e37; }
+  canvas { display: block; image-rendering: pixelated; }
+  .controls { margin: 16px 0; display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+  .controls label { color: var(--muted); }
+  select, input, .controls button { background: var(--panel); color: var(--text);
+           border: 1px solid #2a2e37; border-radius: 4px; padding: 4px 8px; }
+  #scrub { width: 240px; }
+  .real { margin-top: 16px; color: var(--muted); }
+  .real canvas { margin-top: 6px; }
+</style>
+</head>
+<body>
+<nav>
+  <h1>Display preview</h1>
+  <div id="scenes"></div>
+</nav>
+<main>
+  <div class="bezel"><canvas id="oled"></canvas></div>
+  <div class="controls">
+    <button id="play">Pause</button>
+    <input id="scrub" type="range" min="0" value="0">
+    <span id="frame"></span>
+    <label>Zoom <select id="zoom"><option>3</option><option>4</option><option selected>6</option><option>8</option></select></label>
+    <label>Colour <select id="colour">
+      <option value="#e8f0ff">White</option>
+      <option value="#6fc3ff">Blue</option>
+      <option value="#ffd35c">Yellow</option>
+      <option value="#7dff9a">Green</option>
+    </select></label>
+    <label><input id="grid" type="checkbox" checked> Pixel gaps</label>
+  </div>
+  <div class="real">Actual size<canvas id="real"></canvas></div>
+</main>
+<script>
+const DATA = /*SCENES*/;
+
+const oled = document.getElementById('oled'), real = document.getElementById('real');
+const ui = id => document.getElementById(id);
+let scene = null, frame = 0, playing = true, last = 0;
+
+function decode(hex) {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+  return bytes;
+}
+for (const s of DATA.scenes) s.frames = s.frames.map(decode);
+
+function draw() {
+  const { width: w, height: h } = DATA, z = +ui('zoom').value, gap = ui('grid').checked && z > 2 ? 1 : 0;
+  const colour = ui('colour').value, buf = scene.frames[frame];
+  for (const [c, scale, g] of [[oled, z, gap], [real, 1, 0]]) {
+    c.width = w * scale; c.height = h * scale;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#0b0d12'; ctx.fillRect(0, 0, c.width, c.height);
+    ctx.fillStyle = colour;
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++)
+        if (buf[(y >> 3) * w + x] >> (y & 7) & 1) ctx.fillRect(x * scale, y * scale, scale - g, scale - g);
+  }
+  ui('scrub').value = frame;
+  ui('frame').textContent = scene.frames.length > 1 ? `frame ${frame + 1}/${scene.frames.length}` : 'still';
+}
+
+function select(s, button) {
+  scene = s; frame = 0;
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('active', b === button));
+  ui('scrub').max = s.frames.length - 1;
+  location.hash = s.name;
+  draw();
+}
+
+for (const s of DATA.scenes) {
+  const b = document.createElement('button');
+  b.textContent = s.name;
+  if (s.frames.length > 1) b.classList.add('anim');
+  b.onclick = () => select(s, b);
+  ui('scenes').appendChild(b);
+}
+
+function tick(t) {
+  if (playing && scene.frames.length > 1 && t - last >= 1000 / scene.fps) {
+    last = t;
+    frame = (frame + 1) % scene.frames.length;
+    draw();
+  }
+  requestAnimationFrame(tick);
+}
+
+ui('play').onclick = () => { playing = !playing; ui('play').textContent = playing ? 'Pause' : 'Play'; };
+ui('scrub').oninput = e => { frame = +e.target.value; draw(); };
+for (const id of ['zoom', 'colour', 'grid']) ui(id).onchange = draw;
+
+const start = DATA.scenes.findIndex(s => s.name === location.hash.slice(1));
+const buttons = ui('scenes').children;
+select(DATA.scenes[Math.max(start, 0)], buttons[Math.max(start, 0)]);
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
