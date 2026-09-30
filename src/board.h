@@ -4,6 +4,8 @@
 #include "hardware/i2c.h"
 #include "hardware/uart.h"
 
+#include "input.h"
+
 // MIDI out: UART0 TX at 31250 baud
 #define MIDI_UART       uart0
 #define MIDI_BAUD       31250
@@ -13,9 +15,10 @@
 #define PIN_OCT_UP      17
 #define PIN_OCT_DOWN    18
 
-// SSD1305 OLED on I2C1
+// SSD1305 OLED on I2C1, 2.2k pull-ups on the board
 #define OLED_I2C        i2c1
-#define OLED_I2C_HZ     200000
+#define OLED_I2C_HZ     400000
+#define OLED_ADDR       0x3C
 #define PIN_OLED_SDA    26
 #define PIN_OLED_SCL    27
 
@@ -26,10 +29,9 @@
 // Settings text in the second to last flash sector, see docs/configuration.md
 #define CONFIG_FLASH_OFFSET (PICO_FLASH_SIZE_BYTES - 2 * 4096)
 
-// Note keys, ordered from C upwards. Polarity and pulls come from settings.
-#define KEY_COUNT       20
-
-static const uint KEY_PINS[KEY_COUNT] = {
+// GPIO of each input bit (see input.h): keys from C upwards, then octave
+static const uint INPUT_PINS[INPUT_COUNT] = {
      0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, // C .. B
     12, 13, 14, 15, 19, 20, 21, 22,                 // C' .. G'
+    PIN_OCT_UP, PIN_OCT_DOWN,
 };
