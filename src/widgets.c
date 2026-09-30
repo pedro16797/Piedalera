@@ -59,17 +59,13 @@ static void white_outline(gfx_t *g, int x, int y, int h, int black_h, int key) {
     #undef IN_SHAPE
 }
 
+// Keys are outlines, filled while pressed, which keeps most of the OLED dark
 void widget_keyboard(gfx_t *g, int x, int y, int h, uint32_t pressed,
                      uint32_t marked) {
     int black_h = h * 3 / 5;
     for (int key = 0; key < 20; key++) {
-        if (WHITE_INDEX[key] < 0) {
-            continue;
-        }
-        int kx = widget_key_x(x, key), w = widget_key_width(key);
-        gfx_fill(g, kx, y, w, h, true);
-        if (marked & (1u << key)) {
-            dotted(g, kx + 1, y + black_h + 1, w - 2, h - black_h - 2, false);
+        if (WHITE_INDEX[key] >= 0 && (pressed & (1u << key))) {
+            gfx_fill(g, x + WHITE_INDEX[key] * WIDGET_KEY_STEP, y, widget_key_width(key), h, true);
         }
     }
     for (int key = 0; key < 20; key++) {
@@ -77,18 +73,29 @@ void widget_keyboard(gfx_t *g, int x, int y, int h, uint32_t pressed,
             continue;
         }
         int kx = widget_key_x(x, key);
-        // Notch with a dark margin, lit inside when pressed
+        // Notch with a dark margin
         gfx_fill(g, kx - 1, y, BLACK_W + 2, black_h + 1, false);
         if (pressed & (1u << key)) {
             gfx_fill(g, kx, y, BLACK_W, black_h, true);
         } else if (marked & (1u << key)) {
             dotted(g, kx, y, BLACK_W, black_h, true);
+        } else {
+            gfx_fill(g, kx, y, BLACK_W, black_h, true);
+            gfx_fill(g, kx + 1, y + 1, BLACK_W - 2, black_h - 2, false);
         }
     }
-    // Pressed white keys: outline only
     for (int key = 0; key < 20; key++) {
-        if (WHITE_INDEX[key] >= 0 && (pressed & (1u << key))) {
+        if (WHITE_INDEX[key] < 0) {
+            continue;
+        }
+        int kx = widget_key_x(x, key), w = widget_key_width(key);
+        bool down = pressed & (1u << key);
+        if (!down) {
             white_outline(g, x, y, h, black_h, key);
+        }
+        // Chord tones: dots below the notches, lit or dark to contrast
+        if (marked & (1u << key)) {
+            dotted(g, kx + 1, y + black_h + 2, w - 2, h - black_h - 3, !down);
         }
     }
 }

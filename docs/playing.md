@@ -1,6 +1,6 @@
 # Playing
 
-The screen shows the 20 pedals as a keyboard, with held pedals hollow. When
+The screen shows the 20 pedals as a keyboard, with held pedals filled. When
 holding something for a second triggers an action, a line runs round the
 edge of the screen; the action happens when it closes. Without playing, the
 screen dims after a minute and turns off after five (see `display.dim_s` and

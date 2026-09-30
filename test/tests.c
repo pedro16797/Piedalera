@@ -486,17 +486,16 @@ static void test_ui(void) {
     gfx_init(&g, 128, 32);
     int kx = (128 - WIDGET_KEYS_WIDTH) / 2;
 
-    // Keyboard on top; a pressed white key is an outline that wraps around
-    // the black key next to it
+    // Keyboard on top: keys are outlines that wrap around the black keys,
+    // filled while pressed
     ui_state_t st = { .octave = 3, .keys = 1u << 0, .root = -1 };
     ui_render(&g, &st, NULL, 0);
-    CHECK(pixel(&g, kx, 0) && pixel(&g, kx, 11));      // C outline
-    CHECK(!pixel(&g, kx + 3, 9));                       // C inside
-    CHECK(pixel(&g, kx + 12, 9));                       // D, not pressed
+    CHECK(pixel(&g, kx + 3, 9));                        // C, pressed
+    CHECK(pixel(&g, kx + 10, 9) && !pixel(&g, kx + 13, 9));  // D outline
     int notch = widget_key_x(kx, 1);                    // Db
-    CHECK(pixel(&g, notch - 2, 3));                     // outline beside it
-    CHECK(pixel(&g, notch - 1, 8));                     // and below it
+    CHECK(pixel(&g, notch, 3) && !pixel(&g, notch + 1, 3));  // its outline
     CHECK(!pixel(&g, notch - 1, 3));                    // margin stays dark
+    CHECK(pixel(&g, notch + 4, 3) && pixel(&g, notch + 2, 8));  // D wraps it
 
     // Chord mode: chord line and octave line under the keyboard
     st = (ui_state_t){ .octave = 3, .chord_mode = true, .chord = 2, .root = 0,
