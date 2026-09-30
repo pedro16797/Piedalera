@@ -21,4 +21,23 @@ typedef struct {
     uint8_t progress;   // of a key hold towards an action, 0-255
 } ui_state_t;
 
-void ui_render(gfx_t *g, const ui_state_t *st);
+// Transitions played over the snapshots
+typedef struct {
+    ui_state_t last;
+    uint32_t mode_at;       // chord mode toggled: banner
+    uint32_t octave_at;     // octave changed: the number slides
+    uint8_t octave_from;
+    bool started;
+} ui_anim_t;
+
+#define UI_BANNER_MS    800
+#define UI_SLIDE_MS     150
+
+// Notes what changed since the previous snapshot
+void ui_anim_update(ui_anim_t *a, const ui_state_t *st, uint32_t now_ms);
+
+// True while a transition needs a new frame every period
+bool ui_anim_running(const ui_anim_t *a, uint32_t now_ms);
+
+// a may be NULL for no transitions
+void ui_render(gfx_t *g, const ui_state_t *st, const ui_anim_t *a, uint32_t now_ms);

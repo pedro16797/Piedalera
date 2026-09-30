@@ -1,15 +1,13 @@
 # Roadmap
 
-Everything the MicroPython firmware did is implemented, plus a keyboard
-screen, start-up animation, debounce setting and USB flash mode from config
-mode. It hasn't run on the pedalboard yet.
+Everything the MicroPython firmware did is implemented and running on the
+pedalboard, plus a keyboard screen, start-up animation, mode and octave
+transitions, a debounce setting and USB flash mode from config mode.
 
 ## Next
 
-- [ ] Try it on the pedalboard
 - [ ] MIDI panic on demand
 - [ ] Watchdog
-- [ ] Display animations for notes, octave shifts, chord and mode changes
 - [ ] Expression pedal on GP28 / ADC2 (CC11, calibration)
 - [ ] Instrument presets (`instList` in `legacy/Piedalera.py`)
 - [ ] Wear levelling for the settings sector, if octave saves turn out

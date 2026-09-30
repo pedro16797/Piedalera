@@ -114,6 +114,18 @@ static void config_idle(ui_state_t *st, uint32_t t) {
     }
 }
 
+// Both octave buttons toggle chord mode on, then off again
+static void mode_banner(ui_state_t *st, uint32_t t) {
+    base(st);
+    st->chord_mode = t >= 200 && t < 1400;
+}
+
+// Octave up, then down
+static void octave_shift(ui_state_t *st, uint32_t t) {
+    base(st);
+    st->octave = t >= 100 && t < 500 ? 4 : 3;
+}
+
 // Both octave buttons held towards config mode, 60 % of the way
 static void normal_hold(ui_state_t *st, uint32_t t) {
     (void)t;
@@ -141,6 +153,8 @@ static void config_bootsel(ui_state_t *st, uint32_t t) {
 static const scene_t SCENES[] = {
     { "normal",            2000, 10, normal, NULL },
     { "normal-hold",       0,    0,  normal_hold, NULL },
+    { "mode-banner",       2400, 10, mode_banner, NULL },
+    { "octave-shift",      800,  40, octave_shift, NULL },
     { "chord",             0,    0,  chord, NULL },
     { "chord-hold",        0,    0,  chord_hold, NULL },
     { "config",            0,    0,  config_title, NULL },
@@ -346,7 +360,7 @@ static void write_diagrams(const char *dir) {
     st.root = -1;
     st.config = true;
     st.msg = CONFIG_MSG_TITLE;
-    ui_render(&g, &st);
+    ui_render(&g, &st, NULL, 0);
     snprintf(path, sizeof(path), "%s/keys-config.png", dir);
     frames_png(path, buf, 1, g.width, g.height);
     printf("%s: pedal diagrams\n", dir);
@@ -407,6 +421,8 @@ int main(int argc, char **argv) {
         uint32_t frames = sc->duration_ms ? sc->duration_ms * sc->fps / 1000 : 1;
         fprintf(html, "  { name: \"%s\", fps: %u, frames: [\n", sc->name, sc->fps);
         uint8_t **bufs = malloc(frames * sizeof(*bufs));
+        ui_anim_t anim;
+        memset(&anim, 0, sizeof(anim));
         for (uint32_t f = 0; f < frames; f++) {
             uint32_t t = sc->fps ? f * 1000 / sc->fps : 0;
             if (sc->draw) {
@@ -414,7 +430,8 @@ int main(int argc, char **argv) {
             } else {
                 ui_state_t st;
                 sc->state(&st, t);
-                ui_render(&g, &st);
+                ui_anim_update(&anim, &st, t);
+                ui_render(&g, &st, &anim, t);
             }
             fputs("    \"", html);
             for (size_t i = 0; i < bytes; i++) fprintf(html, "%02x", g.buf[i]);

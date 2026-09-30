@@ -33,6 +33,9 @@ void gfx_blit(gfx_t *g, const sprite_t *s, int x, int y);
 // off-screen parts are clipped
 void gfx_text(gfx_t *g, int x, int y, const char *str);
 
+// Same, drawing only rows top to bottom - 1
+void gfx_text_clipped(gfx_t *g, int x, int y, const char *str, int top, int bottom);
+
 // Same, each font pixel drawn as scale x scale
 void gfx_text_scaled(gfx_t *g, int x, int y, const char *str, int scale);
 

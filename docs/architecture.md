@@ -71,6 +71,10 @@ the drawing modules also run in the display preview (`tools/preview`).
   frame, then calls `reset_usb_boot()`.
 - **Saving** happens after config mode or 5 s after the last octave change,
   and only when the text differs from what is stored.
+- **Transitions:** core 1 compares each snapshot with the previous one:
+  a chord mode toggle shows `CHORD` or `NORMAL` large for 0.8 s, and a new
+  octave slides in over 150 ms. Frames are sent every period while one
+  runs.
 - **Display:** frames go out as one DMA transfer of I2C commands at
   400 kHz (about 12 ms for 128×32), only when the snapshot changes. A
   missing display is retried every 500 ms.

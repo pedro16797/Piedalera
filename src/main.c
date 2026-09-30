@@ -47,6 +47,7 @@ static void request_save(const settings_t *s) {
 static void core1_main(void) {
     static gfx_t gfx;
     ui_state_t st;
+    ui_anim_t anim = { 0 };
     uint32_t seen = 0;
     bool redraw = true;
     uint32_t retry_at = 0;
@@ -67,11 +68,12 @@ static void core1_main(void) {
 
         settings_t to_save;
         bool save = false;
+        bool fresh = false;
         uint32_t irq = spin_lock_blocking(lock);
         if (ui_version != seen) {
             seen = ui_version;
             st = shared_ui;
-            redraw = true;
+            redraw = fresh = true;
         }
         if (save_requested) {
             to_save = shared_save;
@@ -85,6 +87,9 @@ static void core1_main(void) {
             irq = spin_lock_blocking(lock);
             saves_done++;
             spin_unlock(lock, irq);
+        }
+        if (fresh) {
+            ui_anim_update(&anim, &st, now);
         }
 
         display_poll();
@@ -121,8 +126,8 @@ static void core1_main(void) {
             redraw = true;
         }
 
-        if (redraw && seen) {
-            ui_render(&gfx, &st);
+        if (seen && (redraw || ui_anim_running(&anim, now))) {
+            ui_render(&gfx, &st, &anim, now);
             display_send(&gfx, st.brightness);
             redraw = !display_ok();
             irq = spin_lock_blocking(lock);

@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include "config_mode.h"
 #include "icons_sprites.h"
 #include "keyboard.h"
@@ -117,7 +119,55 @@ static void config_bootsel(gfx_t *g, const ui_state_t *st) {
     gfx_text_spaced(g, x + 3 * FLASH_ADVANCE + 3, y, "FLASH", 2, FLASH_ADVANCE);
 }
 
-static void screen(gfx_t *g, const ui_state_t *st) {
+void ui_anim_update(ui_anim_t *a, const ui_state_t *st, uint32_t now) {
+    if (!a->started) {
+        a->started = true;
+        a->last = *st;
+        a->mode_at = now - UI_BANNER_MS;
+        a->octave_at = now - UI_SLIDE_MS;
+        return;
+    }
+    // Only while playing; entering config mode toggles and restores it
+    if (!st->config && !a->last.config) {
+        if (st->chord_mode != a->last.chord_mode) {
+            a->mode_at = now;
+        }
+        if (st->octave != a->last.octave) {
+            a->octave_from = a->last.octave;
+            a->octave_at = now;
+        }
+    }
+    a->last = *st;
+}
+
+static bool active(uint32_t at, uint32_t now, uint32_t len) {
+    return now - at < len;
+}
+
+bool ui_anim_running(const ui_anim_t *a, uint32_t now) {
+    return active(a->mode_at, now, UI_BANNER_MS) || active(a->octave_at, now, UI_SLIDE_MS);
+}
+
+// "Octave: n"; a changed number slides in from below when going up, from
+// above when going down, pushing the old one out
+static void octave_line(gfx_t *g, const ui_state_t *st, const ui_anim_t *a, uint32_t now) {
+    char num[4];
+    int y = TEXT_Y + 9, x = 8 * 8;
+    gfx_text(g, 0, y, "Octave: ");
+    put_int(num, st->octave, false);
+    if (!a || !active(a->octave_at, now, UI_SLIDE_MS)) {
+        gfx_text(g, x, y, num);
+        return;
+    }
+    char old[4];
+    put_int(old, a->octave_from, false);
+    int dir = st->octave > a->octave_from ? 1 : -1;
+    int d = (now - a->octave_at) * 9 / UI_SLIDE_MS;
+    gfx_text_clipped(g, x, y - dir * d, old, y, y + 9);
+    gfx_text_clipped(g, x, y + dir * (9 - d), num, y, y + 9);
+}
+
+static void screen(gfx_t *g, const ui_state_t *st, const ui_anim_t *a, uint32_t now) {
     char line[24];
 
     if (st->config) {
@@ -133,9 +183,17 @@ static void screen(gfx_t *g, const ui_state_t *st) {
 
     widget_keyboard(g, kb_x(g), 0, KB_H, st->keys, st->marks);
 
+    // Mode just toggled: its name, large, for a moment
+    if (a && active(a->mode_at, now, UI_BANNER_MS)) {
+        const char *name = st->chord_mode ? "CHORD" : "NORMAL";
+        int len = (int)strlen(name);
+        gfx_text_scaled(g, (g->width - len * 16) / 2, KB_H + (g->height - KB_H - 14) / 2,
+                        name, 2);
+        return;
+    }
+
     // Octave on the bottom line in both modes
-    put_int(put_str(line, "Octave: "), st->octave, false);
-    gfx_text(g, 0, TEXT_Y + 9, line);
+    octave_line(g, st, a, now);
     if (!st->chord_mode) {
         return;
     }
@@ -152,8 +210,8 @@ static void screen(gfx_t *g, const ui_state_t *st) {
     }
 }
 
-void ui_render(gfx_t *g, const ui_state_t *st) {
+void ui_render(gfx_t *g, const ui_state_t *st, const ui_anim_t *a, uint32_t now) {
     gfx_clear(g);
-    screen(g, st);
+    screen(g, st, a, now);
     widget_hold_border(g, st->progress);
 }

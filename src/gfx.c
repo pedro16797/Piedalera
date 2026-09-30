@@ -107,15 +107,24 @@ void gfx_text_spaced(gfx_t *g, int x, int y, const char *str, int scale, int adv
     }
 }
 
-void gfx_text(gfx_t *g, int x, int y, const char *str) {
+void gfx_text_clipped(gfx_t *g, int x, int y, const char *str, int top, int bottom) {
     if (y <= -9 || y >= g->height) {
         return;
+    }
+    // Glyph rows outside [top, bottom)
+    uint16_t mask = 0x1FF;
+    for (int i = 0; i < 9; i++) {
+        if (y + i < top || y + i >= bottom) mask &= ~(1u << i);
     }
     for (; *str && x < g->width; str++, x += 8) {
         uint16_t cols[8];
         glyph(*str, cols);
         for (int i = 0; i < 8; i++) {
-            column(g, x + i, y, cols[i]);
+            column(g, x + i, y, cols[i] & mask);
         }
     }
+}
+
+void gfx_text(gfx_t *g, int x, int y, const char *str) {
+    gfx_text_clipped(g, x, y, str, 0, g->height);
 }

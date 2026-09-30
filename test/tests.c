@@ -471,6 +471,16 @@ static bool pixel(const gfx_t *g, int x, int y) {
     return g->buf[(y >> 3) * g->width + x] >> (y & 7) & 1;
 }
 
+// Any pixel lit in [x0, x1) x [y0, y1)
+static bool lit(const gfx_t *g, int x0, int y0, int x1, int y1) {
+    for (int y = y0; y < y1; y++) {
+        for (int x = x0; x < x1; x++) {
+            if (pixel(g, x, y)) return true;
+        }
+    }
+    return false;
+}
+
 static void test_ui(void) {
     static gfx_t g;
     gfx_init(&g, 128, 32);
@@ -479,7 +489,7 @@ static void test_ui(void) {
     // Keyboard on top; a pressed white key is an outline that wraps around
     // the black key next to it
     ui_state_t st = { .octave = 3, .keys = 1u << 0, .root = -1 };
-    ui_render(&g, &st);
+    ui_render(&g, &st, NULL, 0);
     CHECK(pixel(&g, kx, 0) && pixel(&g, kx, 11));      // C outline
     CHECK(!pixel(&g, kx + 3, 9));                       // C inside
     CHECK(pixel(&g, kx + 12, 9));                       // D, not pressed
@@ -491,29 +501,48 @@ static void test_ui(void) {
     // Chord mode: chord line and octave line under the keyboard
     st = (ui_state_t){ .octave = 3, .chord_mode = true, .chord = 2, .root = 0,
                        .hold = true };
-    ui_render(&g, &st);
+    ui_render(&g, &st, NULL, 0);
     int text = 0;
     for (int x = 0; x < 128; x++) text |= g.buf[2 * 128 + x] | g.buf[3 * 128 + x];
     CHECK(text);
 
     // Config map and value screens draw something below the keyboard
     st = (ui_state_t){ .config = true, .msg = CONFIG_MSG_TITLE, .root = -1 };
-    ui_render(&g, &st);
+    ui_render(&g, &st, NULL, 0);
     CHECK(pixel(&g, widget_key_x(kx, 0) + 1, 13));      // arc under C-D
     st.msg = CONFIG_MSG_TRANSPOSE;
     st.msg_value = -3;
-    ui_render(&g, &st);
+    ui_render(&g, &st, NULL, 0);
     CHECK(pixel(&g, 64, 23));                           // bar frame
 
     // Hold border: inverted from the top middle, clockwise
     st.progress = 64;   // a quarter: the top right and part of the right
-    ui_render(&g, &st);
+    ui_render(&g, &st, NULL, 0);
     CHECK(pixel(&g, 64, 23));                           // untouched
     CHECK(pixel(&g, 127, 5) && !pixel(&g, 0, 5));
     CHECK(!pixel(&g, 70, 0));                           // lit key, inverted
     st.progress = 255;
-    ui_render(&g, &st);
+    ui_render(&g, &st, NULL, 0);
     CHECK(pixel(&g, 0, 5) && pixel(&g, 5, 31));
+
+    // Transitions: a mode banner, then an octave slide clipped to its line
+    ui_anim_t a = { 0 };
+    st = (ui_state_t){ .octave = 3, .root = -1 };
+    ui_anim_update(&a, &st, 1000);
+    CHECK(!ui_anim_running(&a, 1000));
+    st.chord_mode = true;
+    ui_anim_update(&a, &st, 2000);
+    CHECK(ui_anim_running(&a, 2000 + UI_BANNER_MS - 1));
+    CHECK(!ui_anim_running(&a, 2000 + UI_BANNER_MS));
+    ui_render(&g, &st, &a, 2400);
+    CHECK(lit(&g, 80, 15, 104, 29));                    // "CHORD", large
+    ui_render(&g, &st, &a, 2800);
+    CHECK(!lit(&g, 80, 15, 104, 29));
+    st.octave = 4;
+    ui_anim_update(&a, &st, 3000);
+    CHECK(ui_anim_running(&a, 3100) && !ui_anim_running(&a, 3000 + UI_SLIDE_MS));
+    ui_render(&g, &st, &a, 3075);
+    CHECK(lit(&g, 64, 23, 72, 32) && !lit(&g, 64, 14, 72, 23));
 
     // Text at y = 12 straddles pages 1 and 2
     gfx_clear(&g);
