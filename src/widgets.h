@@ -20,8 +20,9 @@ int widget_key_width(int key);
 // "\___/" pointer under keys a..b (inclusive) of a strip drawn at x
 void widget_arc(gfx_t *g, int x, int y, int key_a, int key_b);
 
-// 3x5 text for labels under keys; digits, M m d h H s + - only
-void widget_tiny_text(gfx_t *g, int x, int y, const char *str);
+// 3x5 text for key labels, lit or dark; digits, A-H, M O, c d h m o r s t,
+// + - and space only
+void widget_tiny_text(gfx_t *g, int x, int y, const char *str, bool on);
 int widget_tiny_width(const char *str);
 
 // Screen border inverted clockwise from the top middle, progress/255 of the

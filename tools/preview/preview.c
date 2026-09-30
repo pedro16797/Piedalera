@@ -254,43 +254,63 @@ static void frames_png(const char *path, uint8_t *const *bufs, int n,
 // Pedal diagrams for the docs, drawn like the display
 
 #define KB_X ((128 - WIDGET_KEYS_WIDTH) / 2)
+#define DIAGRAM_KB_H 12
 
-static void tiny_under(gfx_t *g, int key, int y, const char *label) {
-    int x = widget_key_x(KB_X, key) + widget_key_width(key) / 2;
-    widget_tiny_text(g, x - widget_tiny_width(label) / 2, y, label);
+static bool is_white(int key) {
+    return widget_key_width(key) != widget_key_width(1);
+}
+
+// Label centred under a white key (row 0 or 1) or over a black one
+static void key_label(gfx_t *g, int kb_y, int key, const char *label, int row) {
+    int x = widget_key_x(KB_X, key) + (widget_key_width(key) - widget_tiny_width(label)) / 2;
+    int y = is_white(key) ? kb_y + DIAGRAM_KB_H + 4 + row * 7 : kb_y - 6;
+    widget_tiny_text(g, x, y, label, true);
+}
+
+// Sprite with its left edge at x, centred vertically on y
+static void blit_centred(gfx_t *g, const sprite_t *s, int x, int y) {
+    gfx_blit(g, s, x, y - s->height / 2);
 }
 
 static void diagram_normal(gfx_t *g) {
+    static const char *const NOTES[12] = { "C", "D", "E", "F", "G", "A", "B", "C", "D", "E", "F", "G" };
     gfx_clear(g);
-    widget_keyboard(g, KB_X, 0, 12, 0, 0);
+    widget_keyboard(g, KB_X, 0, DIAGRAM_KB_H, 0, 0);
+    for (int key = 0, n = 0; key < 20; key++) {
+        if (is_white(key)) {
+            key_label(g, 0, key, NOTES[n++], 0);
+        }
+    }
     // One button: one octave up or down
-    gfx_blit(g, &SPRITE_BUTTON_UP, 8, 17);
-    widget_tiny_text(g, 22, 20, "+1");
-    gfx_blit(g, &SPRITE_BUTTON_DOWN, 40, 17);
-    widget_tiny_text(g, 54, 20, "-1");
+    blit_centred(g, &SPRITE_BUTTON_UP, 12, 28);
+    widget_tiny_text(g, 26, 26, "Oct +1", true);
+    blit_centred(g, &SPRITE_BUTTON_DOWN, 68, 28);
+    widget_tiny_text(g, 82, 26, "Oct -1", true);
     // Both: chord mode briefly, config mode after a second
-    gfx_blit(g, &SPRITE_BUTTON_UP, 8, 33);
-    gfx_blit(g, &SPRITE_BUTTON_DOWN, 21, 33);
-    gfx_blit(g, &SPRITE_CHORD, 36, 32);
-    gfx_blit(g, &SPRITE_BUTTON_UP, 64, 33);
-    gfx_blit(g, &SPRITE_BUTTON_DOWN, 77, 33);
-    widget_tiny_text(g, 91, 36, "1s");
-    gfx_blit(g, &SPRITE_GEAR, 101, 33);
+    blit_centred(g, &SPRITE_BUTTON_UP, 12, 41);
+    blit_centred(g, &SPRITE_BUTTON_DOWN, 25, 41);
+    widget_tiny_text(g, 40, 39, "Chord", true);
+    blit_centred(g, &SPRITE_BUTTON_UP, 68, 41);
+    blit_centred(g, &SPRITE_BUTTON_DOWN, 81, 41);
+    widget_tiny_text(g, 96, 39, "1s", true);
+    blit_centred(g, &SPRITE_SETTINGS, 106, 41);
 }
 
 static void diagram_chord(gfx_t *g) {
     static const char *const LABELS[8] = { "M7", "M", "m7", "m", "d7", "h7", "7", "H" };
+    int kb_y = 6;
     gfx_clear(g);
-    widget_keyboard(g, KB_X, 0, 12, 0, 0);
-    // Roots: one arc over all of them
-    widget_arc(g, KB_X, 13, 0, 11);
-    int left = widget_key_x(KB_X, 0), right = widget_key_x(KB_X, 11) + widget_key_width(11);
-    gfx_blit(g, &SPRITE_CHORD, (left + right - SPRITE_CHORD.width) / 2, 17);
-    // Chord types and hold, staggered over three rows so neighbours don't touch
-    static const uint8_t ROW[8] = { 14, 26, 20, 26, 14, 20, 26, 14 };
-    for (int key = 12; key < 20; key++) {
-        tiny_under(g, key, ROW[key - 12], LABELS[key - 12]);
+    widget_keyboard(g, KB_X, kb_y, DIAGRAM_KB_H, 0, 0);
+    // Chord types and hold on the upper eight keys; labels under neighbouring
+    // white keys alternate rows, as they are as wide as the keys
+    for (int key = 12, white = 0; key < 20; key++) {
+        key_label(g, kb_y, key, LABELS[key - 12], is_white(key) ? white++ & 1 : 0);
     }
+    // Roots: one arc under all of them
+    int y = kb_y + DIAGRAM_KB_H + 1;
+    widget_arc(g, KB_X, y, 0, 11);
+    int left = widget_key_x(KB_X, 0), right = widget_key_x(KB_X, 11) + widget_key_width(11);
+    widget_tiny_text(g, (left + right - widget_tiny_width("Chord")) / 2, y + 4, "Chord", true);
 }
 
 static void write_diagrams(const char *dir) {
@@ -303,11 +323,12 @@ static void write_diagrams(const char *dir) {
     snprintf(path, sizeof(path), "%s/keys-normal.png", dir);
     frames_png(path, buf, 1, g.width, g.height);
 
-    gfx_init(&g, 128, 32);
+    gfx_init(&g, 128, 40);
     diagram_chord(&g);
     snprintf(path, sizeof(path), "%s/keys-chord.png", dir);
     frames_png(path, buf, 1, g.width, g.height);
 
+    gfx_init(&g, 128, 32);
     ui_state_t st;
     memset(&st, 0, sizeof(st));
     st.root = -1;

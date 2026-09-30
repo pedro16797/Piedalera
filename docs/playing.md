@@ -21,8 +21,8 @@ chord mode.
 ![Normal mode](images/keys-normal.png)
 
 - **▲ / ▼** (one octave button): one octave up or down; hold to repeat.
-- **▲ + ▼ briefly** (the note stack): chord mode on or off.
-- **▲ + ▼ for a second** (the gear): config mode.
+- **▲ + ▼ briefly** (`Chord`): chord mode on or off.
+- **▲ + ▼ for a second** (the sliders): config mode.
 
 ## Chord mode
 

@@ -103,12 +103,17 @@ static const struct {
     { '3', 3, { 21, 21, 31 } }, { '4', 3, { 7, 4, 31 } },   { '5', 3, { 23, 21, 29 } },
     { '6', 3, { 31, 21, 29 } }, { '7', 3, { 1, 29, 3 } },   { '8', 3, { 31, 21, 31 } },
     { '9', 3, { 23, 21, 31 } }, { 'H', 3, { 31, 4, 31 } },  { 'd', 3, { 28, 20, 31 } },
-    { 'h', 3, { 31, 4, 28 } },  { 's', 3, { 20, 18, 10 } }, { '+', 3, { 4, 14, 4 } },
+    { 'h', 3, { 31, 4, 28 } },  { 's', 3, { 18, 21, 9 } },  { '+', 3, { 4, 14, 4 } },
+    { 'A', 3, { 30, 5, 30 } },  { 'B', 3, { 31, 21, 10 } }, { 'C', 3, { 14, 17, 17 } },
+    { 'D', 3, { 31, 17, 14 } }, { 'E', 3, { 31, 21, 17 } }, { 'F', 3, { 31, 5, 1 } },
+    { 'G', 3, { 14, 17, 29 } }, { 'O', 3, { 14, 17, 14 } }, { 'c', 3, { 28, 20, 20 } },
+    { 'o', 3, { 28, 20, 28 } }, { 'r', 3, { 28, 4, 4 } },   { 't', 3, { 2, 15, 18 } },
+    { ' ', 1, { 0 } },
     { '-', 3, { 4, 4, 4 } },    { 'M', 5, { 31, 2, 4, 2, 31 } },
     { 'm', 5, { 28, 4, 28, 4, 24 } },
 };
 
-void widget_tiny_text(gfx_t *g, int x, int y, const char *str) {
+void widget_tiny_text(gfx_t *g, int x, int y, const char *str, bool on) {
     for (; *str; str++) {
         for (unsigned i = 0; i < sizeof(TINY) / sizeof(TINY[0]); i++) {
             if (TINY[i].c != *str) {
@@ -117,7 +122,7 @@ void widget_tiny_text(gfx_t *g, int x, int y, const char *str) {
             for (int col = 0; col < TINY[i].width; col++) {
                 for (int bit = 0; bit < 5; bit++) {
                     if (TINY[i].cols[col] >> bit & 1) {
-                        gfx_fill(g, x + col, y + bit, 1, 1, true);
+                        gfx_fill(g, x + col, y + bit, 1, 1, on);
                     }
                 }
             }
