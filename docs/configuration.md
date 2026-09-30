@@ -22,6 +22,8 @@ saved to the same place.
 | `display.col_offset` | 4       | 0–4                | First visible RAM column; width + offset ≤ 132 |
 | `display.brightness` | 15      | 0–255              | Display contrast |
 | `display.splash`     | true    | true / false       | Play the start-up animation |
+| `display.dim_s`      | 60      | 0–3600             | Seconds without input before the screen dims; 0 never |
+| `display.off_s`      | 300     | 0–3600             | Seconds without input before the screen turns off; 0 never |
 | `midi.channel`       | 1       | 1–16               | MIDI channel |
 | `midi.velocity`      | 95      | 1–127              | Note velocity |
 | `midi.transpose`     | 0       | −12–12             | Semitones added to every note |

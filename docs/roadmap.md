@@ -2,7 +2,8 @@
 
 Everything the MicroPython firmware did is implemented and running on the
 pedalboard, plus a keyboard screen, start-up animation, mode and octave
-transitions, a debounce setting and USB flash mode from config mode.
+transitions, idle dimming, a debounce setting and USB flash mode from config
+mode.
 
 ## Next
 

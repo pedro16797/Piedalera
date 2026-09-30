@@ -7,7 +7,7 @@
 
 // Snapshot of what the display shows, published by core 0
 typedef struct {
-    uint32_t keys;      // pressed keys
+    uint32_t keys;      // pressed inputs: keys 0-19, then the octave buttons
     uint32_t marks;     // keys to mark, see keyboard_marks()
     uint8_t octave;
     bool chord_mode;
@@ -21,9 +21,10 @@ typedef struct {
     uint8_t progress;   // of a key hold towards an action, 0-255
 } ui_state_t;
 
-// Transitions played over the snapshots
+// Transitions played over the snapshots, and when an input last changed
 typedef struct {
     ui_state_t last;
+    uint32_t changed_at;    // any change of the snapshot
     uint32_t mode_at;       // chord mode toggled: banner
     uint32_t octave_at;     // octave changed: the number slides
     uint8_t octave_from;
@@ -38,6 +39,9 @@ void ui_anim_update(ui_anim_t *a, const ui_state_t *st, uint32_t now_ms);
 
 // True while a transition needs a new frame every period
 bool ui_anim_running(const ui_anim_t *a, uint32_t now_ms);
+
+// Time since the snapshot last changed, i.e. since the last input
+uint32_t ui_idle_ms(const ui_anim_t *a, uint32_t now_ms);
 
 // a may be NULL for no transitions
 void ui_render(gfx_t *g, const ui_state_t *st, const ui_anim_t *a, uint32_t now_ms);

@@ -122,7 +122,7 @@ void app_update(const input_state_t *in, uint32_t now) {
 void app_ui_state(ui_state_t *out) {
     // Zeroed padding too, so snapshots can be compared with memcmp
     memset(out, 0, sizeof(*out));
-    out->keys = pressed & KEYS_MASK;
+    out->keys = pressed & (KEYS_MASK | INPUT_BIT(INPUT_OCT_UP) | INPUT_BIT(INPUT_OCT_DOWN));
     out->marks = keyboard_marks();
     out->root = keyboard_root();
     out->octave = settings->octave_current;

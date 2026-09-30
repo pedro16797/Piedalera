@@ -75,6 +75,9 @@ the drawing modules also run in the display preview (`tools/preview`).
   a chord mode toggle shows `CHORD` or `NORMAL` large for 0.8 s, and a new
   octave slides in over 150 ms. Frames are sent every period while one
   runs.
+- **Idle:** with no snapshot change for `display.dim_s` the contrast drops
+  to a quarter, and after `display.off_s` the panel sleeps (0xAE) until the
+  next change.
 - **Display:** frames go out as one DMA transfer of I2C commands at
   400 kHz (about 12 ms for 128×32), only when the snapshot changes. A
   missing display is retried every 500 ms.

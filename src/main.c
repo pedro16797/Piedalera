@@ -17,6 +17,7 @@
 #define BOOTSEL_SAVE_WAIT_MS 2000
 #define BOOTSEL_SHOW_WAIT_MS 50     // for the last frame to be drawn
 #define FRAME_SEND_MS       13      // I2C transfer of a 128x32 frame
+#define DIM_DIVISOR         4       // idle contrast is brightness / this
 
 static settings_t settings;
 
@@ -50,6 +51,8 @@ static void core1_main(void) {
     ui_anim_t anim = { 0 };
     uint32_t seen = 0;
     bool redraw = true;
+    bool asleep = false;
+    int sent_contrast = -1;
     uint32_t retry_at = 0;
 
     // The splash starts once the display answers and ends early if the UI
@@ -105,6 +108,7 @@ static void core1_main(void) {
                 continue;
             }
             redraw = true;
+            asleep = false;
         }
 
         if (splash) {
@@ -126,9 +130,26 @@ static void core1_main(void) {
             redraw = true;
         }
 
-        if (seen && (redraw || ui_anim_running(&anim, now))) {
+        // Without input for a while the screen dims, then sleeps; any input
+        // changes the snapshot and wakes it
+        uint32_t idle = ui_idle_ms(&anim, now);
+        bool off = settings.display_off_s && idle >= settings.display_off_s * 1000u;
+        bool dim = settings.display_dim_s && idle >= settings.display_dim_s * 1000u;
+        uint8_t contrast = dim ? st.brightness / DIM_DIVISOR : st.brightness;
+        if (off != asleep) {
+            display_power(!off);
+            asleep = off;
+            redraw = true;
+        }
+        if (asleep) {
+            sleep_until(next);
+            continue;
+        }
+
+        if (seen && (redraw || contrast != sent_contrast || ui_anim_running(&anim, now))) {
             ui_render(&gfx, &st, &anim, now);
-            display_send(&gfx, st.brightness);
+            display_send(&gfx, contrast);
+            sent_contrast = contrast;
             redraw = !display_ok();
             irq = spin_lock_blocking(lock);
             ui_shown = seen;

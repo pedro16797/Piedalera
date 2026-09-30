@@ -73,6 +73,16 @@ bool display_init(uint8_t height, uint8_t offset) {
     return ok;
 }
 
+void display_power(bool on) {
+    const uint8_t cmd[] = { 0x00, on ? 0xAF : 0xAE };
+    if (!wait_dma()) {
+        ok = false;
+        return;
+    }
+    ok = i2c_write_timeout_us(OLED_I2C, OLED_ADDR, cmd, sizeof(cmd), false,
+                              20000) == (int)sizeof(cmd);
+}
+
 void display_poll(void) {
     i2c_hw_t *hw = i2c_get_hw(OLED_I2C);
     if (ok && !dma_channel_is_busy(dma) &&

@@ -123,9 +123,13 @@ void ui_anim_update(ui_anim_t *a, const ui_state_t *st, uint32_t now) {
     if (!a->started) {
         a->started = true;
         a->last = *st;
+        a->changed_at = now;
         a->mode_at = now - UI_BANNER_MS;
         a->octave_at = now - UI_SLIDE_MS;
         return;
+    }
+    if (memcmp(st, &a->last, sizeof(*st)) != 0) {
+        a->changed_at = now;
     }
     // Only while playing; entering config mode toggles and restores it
     if (!st->config && !a->last.config) {
@@ -146,6 +150,10 @@ static bool active(uint32_t at, uint32_t now, uint32_t len) {
 
 bool ui_anim_running(const ui_anim_t *a, uint32_t now) {
     return active(a->mode_at, now, UI_BANNER_MS) || active(a->octave_at, now, UI_SLIDE_MS);
+}
+
+uint32_t ui_idle_ms(const ui_anim_t *a, uint32_t now) {
+    return now - a->changed_at;
 }
 
 // "Octave: n"; a changed number slides in from below when going up, from

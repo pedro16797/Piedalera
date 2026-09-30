@@ -525,7 +525,8 @@ static void test_ui(void) {
     ui_render(&g, &st, NULL, 0);
     CHECK(pixel(&g, 0, 5) && pixel(&g, 5, 31));
 
-    // Transitions: a mode banner, then an octave slide clipped to its line
+    // Transitions: a mode banner, then an octave slide clipped to its line;
+    // idle time counts from the last change
     ui_anim_t a = { 0 };
     st = (ui_state_t){ .octave = 3, .root = -1 };
     ui_anim_update(&a, &st, 1000);
@@ -543,6 +544,7 @@ static void test_ui(void) {
     CHECK(ui_anim_running(&a, 3100) && !ui_anim_running(&a, 3000 + UI_SLIDE_MS));
     ui_render(&g, &st, &a, 3075);
     CHECK(lit(&g, 64, 23, 72, 32) && !lit(&g, 64, 14, 72, 23));
+    CHECK(ui_idle_ms(&a, 5000) == 2000);
 
     // Text at y = 12 straddles pages 1 and 2
     gfx_clear(&g);
