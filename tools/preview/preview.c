@@ -1,7 +1,9 @@
 // Renders UI scenes with the firmware's own drawing code (gfx.c, ui.c) and
-// writes preview.html (playable, OLED-styled) plus a PNG per scene.
+// writes preview.html (playable, OLED-styled) plus a PNG per scene, or the
+// pedal diagrams in docs/images/.
 //
 //   preview [output dir] [--size WxH]
+//   preview --diagrams docs/images
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,8 +12,11 @@
 #include "config_mode.h"
 #include "gfx.h"
 #include "midi.h"
+#include "diagram_sprites.h"
+#include "icons_sprites.h"
 #include "splash.h"
 #include "ui.h"
+#include "widgets.h"
 
 // ui.c pulls in the chord table from keyboard.c, which needs a MIDI output
 void midi_note_on(uint8_t ch, uint8_t note, uint8_t velocity) { (void)ch; (void)note; (void)velocity; }
@@ -32,25 +37,35 @@ static void base(ui_state_t *st) {
     memset(st, 0, sizeof(*st));
     st->octave = 3;
     st->brightness = 15;
+    st->root = -1;
 }
 
+#define KEY(k) (1u << (k))
+
+// C, then C-E, C-E-G, then D'b
 static void normal(ui_state_t *st, uint32_t t) {
-    (void)t;
+    static const uint32_t STEPS[] = { 0, KEY(0), KEY(0) | KEY(4), KEY(0) | KEY(4) | KEY(7), KEY(13) };
     base(st);
+    st->keys = STEPS[(t / 400) % 5];
 }
 
 static void chord(ui_state_t *st, uint32_t t) {
     (void)t;
     base(st);
     st->chord_mode = true;
+    st->marks = KEY(13);    // Major selected
 }
 
+// C major 7th sounding with hold; root and chord notes marked
 static void chord_hold(ui_state_t *st, uint32_t t) {
     (void)t;
     base(st);
     st->chord_mode = true;
-    st->chord = 3;
+    st->chord = 2;
     st->hold = true;
+    st->root = 0;
+    st->keys = KEY(0);
+    st->marks = KEY(0) | KEY(4) | KEY(7) | KEY(11) | KEY(12) | KEY(19);
 }
 
 static void config_title(ui_state_t *st, uint32_t t) {
@@ -60,41 +75,51 @@ static void config_title(ui_state_t *st, uint32_t t) {
     st->msg = CONFIG_MSG_TITLE;
 }
 
+static void config_brightness(ui_state_t *st, uint32_t t) {
+    config_title(st, t);
+    st->keys = KEY(2);
+    st->msg = CONFIG_MSG_BRIGHTNESS;
+    st->msg_value = 7;
+}
+
 static void config_velocity(ui_state_t *st, uint32_t t) {
     config_title(st, t);
+    st->keys = KEY(5);
     st->msg = CONFIG_MSG_VELOCITY;
     st->msg_value = 95;
 }
 
 static void config_transpose(ui_state_t *st, uint32_t t) {
     config_title(st, t);
-    st->chord_mode = true;
+    st->keys = KEY(11);
     st->msg = CONFIG_MSG_TRANSPOSE;
     st->msg_value = -3;
 }
 
 static void config_debounce(ui_state_t *st, uint32_t t) {
     config_title(st, t);
+    st->keys = KEY(16);
     st->msg = CONFIG_MSG_DEBOUNCE;
     st->msg_value = 5;
 }
 
 static void config_bootsel(ui_state_t *st, uint32_t t) {
     config_title(st, t);
+    st->keys = KEY(19);
     st->msg = CONFIG_MSG_BOOTSEL;
 }
 
-
 // Add a scene for every screen or animation being worked on
 static const scene_t SCENES[] = {
-    { "normal",           0,    0,  normal, NULL },
-    { "chord",            0,    0,  chord, NULL },
-    { "chord-hold",       0,    0,  chord_hold, NULL },
-    { "config",           0,    0,  config_title, NULL },
-    { "config-velocity",  0,    0,  config_velocity, NULL },
-    { "config-transpose", 0,    0,  config_transpose, NULL },
-    { "config-debounce",  0,    0,  config_debounce, NULL },
-    { "config-bootsel",   0,    0,  config_bootsel, NULL },
+    { "normal",            2000, 10, normal, NULL },
+    { "chord",             0,    0,  chord, NULL },
+    { "chord-hold",        0,    0,  chord_hold, NULL },
+    { "config",            0,    0,  config_title, NULL },
+    { "config-brightness", 0,    0,  config_brightness, NULL },
+    { "config-velocity",   0,    0,  config_velocity, NULL },
+    { "config-transpose",  0,    0,  config_transpose, NULL },
+    { "config-debounce",   0,    0,  config_debounce, NULL },
+    { "config-bootsel",    0,    0,  config_bootsel, NULL },
     { "splash", SPLASH_FRAMES * SPLASH_FRAME_MS, 1000 / SPLASH_FRAME_MS, NULL, splash_draw },
 };
 
@@ -207,6 +232,74 @@ static void frames_png(const char *path, uint8_t *const *bufs, int n,
     free(rgb);
 }
 
+// Pedal diagrams for the docs, drawn like the display
+
+#define KB_X ((128 - WIDGET_KEYS_WIDTH) / 2)
+
+static void tiny_under(gfx_t *g, int key, int y, const char *label) {
+    int x = widget_key_x(KB_X, key) + widget_key_width(key) / 2;
+    widget_tiny_text(g, x - widget_tiny_width(label) / 2, y, label);
+}
+
+static void diagram_normal(gfx_t *g) {
+    gfx_clear(g);
+    widget_keyboard(g, KB_X, 0, 12, 0, 0);
+    // One button: one octave up or down
+    gfx_blit(g, &SPRITE_BUTTON_UP, 8, 17);
+    widget_tiny_text(g, 22, 20, "+1");
+    gfx_blit(g, &SPRITE_BUTTON_DOWN, 40, 17);
+    widget_tiny_text(g, 54, 20, "-1");
+    // Both: chord mode briefly, config mode after a second
+    gfx_blit(g, &SPRITE_BUTTON_UP, 8, 33);
+    gfx_blit(g, &SPRITE_BUTTON_DOWN, 21, 33);
+    gfx_blit(g, &SPRITE_CHORD, 36, 32);
+    gfx_blit(g, &SPRITE_BUTTON_UP, 64, 33);
+    gfx_blit(g, &SPRITE_BUTTON_DOWN, 77, 33);
+    widget_tiny_text(g, 91, 36, "1s");
+    gfx_blit(g, &SPRITE_GEAR, 101, 33);
+}
+
+static void diagram_chord(gfx_t *g) {
+    static const char *const LABELS[8] = { "M7", "M", "m7", "m", "d7", "h7", "7", "H" };
+    gfx_clear(g);
+    widget_keyboard(g, KB_X, 0, 12, 0, 0);
+    // Roots: one arc over all of them
+    widget_arc(g, KB_X, 13, 0, 11);
+    int left = widget_key_x(KB_X, 0), right = widget_key_x(KB_X, 11) + widget_key_width(11);
+    gfx_blit(g, &SPRITE_CHORD, (left + right - SPRITE_CHORD.width) / 2, 17);
+    // Chord types and hold, staggered over three rows so neighbours don't touch
+    static const uint8_t ROW[8] = { 14, 26, 20, 26, 14, 20, 26, 14 };
+    for (int key = 12; key < 20; key++) {
+        tiny_under(g, key, ROW[key - 12], LABELS[key - 12]);
+    }
+}
+
+static void write_diagrams(const char *dir) {
+    static gfx_t g;
+    char path[1024];
+    uint8_t *buf[1] = { g.buf };
+
+    gfx_init(&g, 128, 48);
+    diagram_normal(&g);
+    snprintf(path, sizeof(path), "%s/keys-normal.png", dir);
+    frames_png(path, buf, 1, g.width, g.height);
+
+    gfx_init(&g, 128, 32);
+    diagram_chord(&g);
+    snprintf(path, sizeof(path), "%s/keys-chord.png", dir);
+    frames_png(path, buf, 1, g.width, g.height);
+
+    ui_state_t st;
+    memset(&st, 0, sizeof(st));
+    st.root = -1;
+    st.config = true;
+    st.msg = CONFIG_MSG_TITLE;
+    ui_render(&g, &st);
+    snprintf(path, sizeof(path), "%s/keys-config.png", dir);
+    frames_png(path, buf, 1, g.width, g.height);
+    printf("%s: pedal diagrams\n", dir);
+}
+
 // HTML output: the template with the frames injected as hex strings
 
 static char *read_file(const char *path) {
@@ -225,6 +318,10 @@ int main(int argc, char **argv) {
     const char *out_dir = ".";
     int width = 128, height = 32;
     for (int i = 1; i < argc; i++) {
+        if (!strcmp(argv[i], "--diagrams") && i + 1 < argc) {
+            write_diagrams(argv[++i]);
+            return 0;
+        }
         if (!strcmp(argv[i], "--size") && i + 1 < argc) {
             if (sscanf(argv[++i], "%dx%d", &width, &height) != 2 ||
                 width < 8 || width > GFX_MAX_WIDTH ||

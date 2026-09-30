@@ -28,5 +28,9 @@ void gfx_fill(gfx_t *g, int x, int y, int w, int h, bool on);
 // Draw a sprite's lit pixels at any position, clipped to the screen
 void gfx_blit(gfx_t *g, const sprite_t *s, int x, int y);
 
-// 8x8 text; x and y can be anything, off-screen parts are clipped
+// 8x8 text, g j p q y reaching a 9th row; x and y can be anything,
+// off-screen parts are clipped
 void gfx_text(gfx_t *g, int x, int y, const char *str);
+
+// Same, each font pixel drawn as scale x scale
+void gfx_text_scaled(gfx_t *g, int x, int y, const char *str, int scale);

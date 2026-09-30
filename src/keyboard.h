@@ -28,6 +28,11 @@ void keyboard_release(int key, uint8_t octave);
 void keyboard_reset(void);
 
 void keyboard_set_chord_mode(bool on);
+
+// Chord mode: root key of the sounding chord (-1 if none), and keys to mark
+// on screen: the sounding chord's notes, the selected type and hold
+int keyboard_root(void);
+uint32_t keyboard_marks(void);
 bool keyboard_chord_mode(void);
 uint8_t keyboard_chord(void);
 bool keyboard_hold(void);

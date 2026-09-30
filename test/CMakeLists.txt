@@ -18,6 +18,7 @@ add_executable(tests
     ${SRC}/settings.c
     ${SRC}/splash.c
     ${SRC}/ui.c
+    ${SRC}/widgets.c
 )
 target_include_directories(tests PRIVATE ${SRC})
 target_compile_options(tests PRIVATE -Wall -Wextra -Werror)

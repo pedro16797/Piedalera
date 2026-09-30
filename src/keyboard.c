@@ -32,6 +32,7 @@ static int sounding_root = NO_KEY;
 static int queued_root = NO_KEY;
 static int sounding_notes[4];
 static uint8_t sounding_count;
+static uint8_t chord_notes_type;    // chord type of the sounding chord
 
 static int base_note(int key, uint8_t octave) {
     return key + settings->midi_transpose + 12 * (octave + 1);
@@ -42,6 +43,7 @@ static void chord_start(int root, uint8_t octave) {
     int base = base_note(root, octave);
     sounding_root = root;
     sounding_count = c->count;
+    chord_notes_type = chord;
     for (int i = 0; i < c->count; i++) {
         sounding_notes[i] = base + c->tones[i];
         notes_on(sounding_notes[i], settings->midi_velocity);
@@ -135,6 +137,32 @@ void keyboard_release(int key, uint8_t octave) {
 void keyboard_set_chord_mode(bool on) {
     keyboard_reset();
     chord_mode = on;
+}
+
+int keyboard_root(void) {
+    return chord_mode ? sounding_root : -1;
+}
+
+uint32_t keyboard_marks(void) {
+    if (!chord_mode) {
+        return 0;
+    }
+    uint32_t marks = hold ? INPUT_BIT(KEY_HOLD) : 0;
+    for (int i = 0; i < 7; i++) {
+        if (SELECTOR[i] == chord) {
+            marks |= INPUT_BIT(12 + i);
+        }
+    }
+    if (sounding_root != NO_KEY) {
+        const chord_t *c = &CHORDS[chord_notes_type];
+        for (int i = 0; i < c->count; i++) {
+            int key = sounding_root + c->tones[i];
+            if (key < KEY_COUNT) {
+                marks |= INPUT_BIT(key);
+            }
+        }
+    }
+    return marks;
 }
 
 bool keyboard_chord_mode(void) { return chord_mode; }

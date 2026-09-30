@@ -13,5 +13,6 @@ the MicroPython firmware in `legacy/`.
 - Build: `PICO_SDK_PATH=... cmake -B build -DPICO_BOARD=pico && cmake --build build`. CI builds pico, pico_w, pico2 and pico2_w; keep all four working.
 - Tests: `cmake -S test -B build-test && cmake --build build-test && ctest --test-dir build-test`.
 - Display preview: `cmake -S tools/preview -B build-preview && cmake --build build-preview --target preview-run`, then open `build-preview/preview.html` (PNGs alongside). Add a scene in `tools/preview/preview.c` for new screens or animations and check the PNGs.
-- `src/splash_sprites.h` is generated from `assets/splash/*.png` by `tools/sprites.py` (needs Pillow); never edit it by hand. The splash test in `test/tests.c` pins every frame to `assets/splash/reference.gif`.
+- Pedal diagrams in `docs/images/` are drawn by `tools/preview` (`--target diagrams`); update them when key functions change (CI checks they are current).
+- `src/<set>_sprites.h` are generated from `assets/<set>/*.png` by `tools/sprites.py` (needs Pillow); never edit them by hand. The splash test in `test/tests.c` pins every frame to `assets/splash/reference.gif`.
 - Keep comments short, in the style of existing files.

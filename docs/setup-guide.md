@@ -60,7 +60,7 @@ Updating to a newer version later works the same way, and your settings are
 kept. Once the pedalboard runs this firmware you don't need the BOOTSEL
 button any more: with the USB cable plugged into the computer, enter config
 mode (hold both octave buttons for a second) and hold **G'** for a second.
-The screen shows `USB FLASH MODE` and the drive appears.
+The screen shows `USB FLASH` and the drive appears.
 
 ## 4. Install the settings
 
@@ -144,6 +144,11 @@ ground; each pedal switch goes between its pin below and any even pin.
 
 The last four pedals (E' to G') really do go on pins 01, 03, 05, 07 in that
 order; this is how the existing pedalboard is wired.
+
+## 7. Play
+
+See [playing the pedalboard](playing.md) for what each pedal and button does
+in normal, chord and config mode.
 
 ## Troubleshooting
 

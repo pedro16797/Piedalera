@@ -12,7 +12,8 @@ This repository reworks it in C on top of the
 - Fixing the bugs found in the legacy script and hardening its logic.
 - Adding new features: display animations, an expression pedal input, and more.
 
-**Just want to install it?** Follow the [setup guide](docs/setup-guide.md).
+**Just want to install it?** Follow the [setup guide](docs/setup-guide.md),
+then see [playing the pedalboard](docs/playing.md) for what each pedal does.
 
 ## Repository layout
 
@@ -21,19 +22,21 @@ This repository reworks it in C on top of the
 ├── CMakeLists.txt       Pico SDK build
 ├── .github/workflows/   CI: builds the UF2 files, runs the host tests
 ├── src/                 C firmware (see docs/architecture.md)
-├── assets/splash/       Start-up animation sprites and reference GIF
+├── assets/              Sprites: splash/ (start-up animation), icons/
 ├── test/                Host tests for the hardware-independent modules
 ├── config/
 │   └── piedalera.ini    Default settings
 ├── tools/
 │   ├── config2uf2.py    Turns a settings file into a flashable UF2
-│   ├── sprites.py       Converts assets/splash/ into src/splash_sprites.h
-│   └── preview/         Renders the display on the computer
+│   ├── sprites.py       Converts assets/<set>/ PNGs into src/<set>_sprites.h
+│   └── preview/         Renders the display on the computer, and the pedal
+│                        diagrams in docs/images/
 ├── hardware/
 │   └── picorgano/       KiCad project of the Picórgano board, schematic PDF
 ├── legacy/              Original MicroPython firmware (reference only)
 └── docs/
     ├── setup-guide.md       Step-by-step install for non-programmers
+    ├── playing.md           What each pedal does in each mode (images/)
     ├── hardware.md          Board, headers, pin map, power
     ├── hardware-improvements.md  Ideas for simpler future builds
     ├── configuration.md     Settings file and how to flash it

@@ -14,6 +14,7 @@ static bool config;
 static bool bootsel;
 static bool save_pending;
 static uint32_t save_at;
+static uint32_t pressed;    // last debounced inputs, for the screen
 
 static void request_save(uint32_t now, uint32_t delay) {
     save_pending = true;
@@ -24,6 +25,7 @@ void app_init(settings_t *s) {
     settings = s;
     config = false;
     bootsel = false;
+    pressed = 0;
     save_pending = false;
     notes_init(s->midi_channel - 1);
     notes_panic();
@@ -42,6 +44,7 @@ static void enter_config(bool undo_toggle) {
 }
 
 void app_update(const input_state_t *in, uint32_t now) {
+    pressed = in->pressed;
     if (bootsel) {
         return;
     }
@@ -93,6 +96,9 @@ void app_update(const input_state_t *in, uint32_t now) {
 void app_ui_state(ui_state_t *out) {
     // Zeroed padding too, so snapshots can be compared with memcmp
     memset(out, 0, sizeof(*out));
+    out->keys = pressed & KEYS_MASK;
+    out->marks = keyboard_marks();
+    out->root = keyboard_root();
     out->octave = settings->octave_current;
     out->chord_mode = keyboard_chord_mode();
     out->chord = keyboard_chord();

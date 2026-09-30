@@ -13,6 +13,7 @@
 #include "settings.h"
 #include "splash.h"
 #include "ui.h"
+#include "widgets.h"
 
 static int failures;
 
@@ -429,26 +430,55 @@ static void test_app(void) {
 
 // Display
 
+static bool pixel(const gfx_t *g, int x, int y) {
+    return g->buf[(y >> 3) * g->width + x] >> (y & 7) & 1;
+}
+
 static void test_ui(void) {
     static gfx_t g;
     gfx_init(&g, 128, 32);
-    ui_state_t st = { .octave = 3, .chord_mode = true, .chord = 2 };
-    ui_render(&g, &st);
+    int kx = (128 - WIDGET_KEYS_WIDTH) / 2;
 
-    // "O" of "Octava" at the top left, rows 0-7
-    CHECK(g.buf[1] != 0);
-    // Row 2 starts at y = 24: page 3 only
-    int page3 = 0;
-    for (int x = 0; x < 128; x++) page3 |= g.buf[3 * 128 + x];
-    CHECK(page3);
+    // Keyboard on top; a pressed white key is an outline that wraps around
+    // the black key next to it
+    ui_state_t st = { .octave = 3, .keys = 1u << 0, .root = -1 };
+    ui_render(&g, &st);
+    CHECK(pixel(&g, kx, 0) && pixel(&g, kx, 11));      // C outline
+    CHECK(!pixel(&g, kx + 3, 9));                       // C inside
+    CHECK(pixel(&g, kx + 12, 9));                       // D, not pressed
+    int notch = widget_key_x(kx, 1);                    // Db
+    CHECK(pixel(&g, notch - 2, 3));                     // outline beside it
+    CHECK(pixel(&g, notch - 1, 8));                     // and below it
+    CHECK(!pixel(&g, notch - 1, 3));                    // margin stays dark
+
+    // Chord mode: chord line and octave line under the keyboard
+    st = (ui_state_t){ .octave = 3, .chord_mode = true, .chord = 2, .root = 0,
+                       .hold = true };
+    ui_render(&g, &st);
+    int text = 0;
+    for (int x = 0; x < 128; x++) text |= g.buf[2 * 128 + x] | g.buf[3 * 128 + x];
+    CHECK(text);
+
+    // Config map and value screens draw something below the keyboard
+    st = (ui_state_t){ .config = true, .msg = CONFIG_MSG_TITLE, .root = -1 };
+    ui_render(&g, &st);
+    CHECK(pixel(&g, widget_key_x(kx, 0) + 1, 13));      // arc under C-D
+    st.msg = CONFIG_MSG_TRANSPOSE;
+    st.msg_value = -3;
+    ui_render(&g, &st);
+    CHECK(pixel(&g, 64, 23));                           // bar frame
 
     // Text at y = 12 straddles pages 1 and 2
     gfx_clear(&g);
     gfx_text(&g, 0, 12, "|");
     CHECK(g.buf[1 * 128 + 3] == 0xF0 && g.buf[2 * 128 + 3] == 0x0F);
+    // Tall glyphs reach a 9th row
+    gfx_clear(&g);
+    gfx_text(&g, 0, 0, "j");
+    CHECK(pixel(&g, 3, 8) && !pixel(&g, 3, 9));
     // Clipped text doesn't write out of bounds
-    gfx_text(&g, 120, 28, "WW");
-    gfx_text(&g, -4, -4, "W");
+    gfx_text(&g, 120, 28, "WWj");
+    gfx_text(&g, -4, -4, "Wj");
 }
 
 // Splash: every frame matches assets/splash/reference.gif (FNV-1a of the

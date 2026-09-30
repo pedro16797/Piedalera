@@ -127,6 +127,22 @@ bool config_mode_changed(void) {
     return changed;
 }
 
+bool config_mode_keys(config_msg_t msg, uint8_t *down, uint8_t *up) {
+    if (msg == CONFIG_MSG_BOOTSEL) {
+        *down = *up = KEY_BOOTSEL;
+        return true;
+    }
+    bool found = false;
+    for (unsigned i = 0; i < FUNCTION_COUNT; i++) {
+        // Messages follow the target order, after the title
+        if ((config_msg_t)(FUNCTIONS[i].target + CONFIG_MSG_BRIGHTNESS) == msg) {
+            *(FUNCTIONS[i].delta < 0 ? down : up) = FUNCTIONS[i].key;
+            found = true;
+        }
+    }
+    return found;
+}
+
 config_msg_t config_mode_msg(int *value) {
     *value = msg_value;
     return msg;

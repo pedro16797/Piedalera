@@ -30,7 +30,9 @@ jobs:
         run: |
           pip install --quiet pillow
           python3 tools/sprites.py
-          git diff --exit-code src/splash_sprites.h
+          cmake -S tools/preview -B build-preview
+          cmake --build build-preview --target diagrams
+          git diff --exit-code docs/images src/*_sprites.h
 
   preview:
     runs-on: ubuntu-24.04

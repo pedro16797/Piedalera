@@ -35,3 +35,7 @@ config_result_t config_mode_update(const input_state_t *in, uint32_t now_ms);
 bool config_mode_changed(void);
 
 config_msg_t config_mode_msg(int *value);
+
+// Keys that turn a setting down and up (the same key twice for bootsel);
+// false for CONFIG_MSG_TITLE
+bool config_mode_keys(config_msg_t msg, uint8_t *down, uint8_t *up);

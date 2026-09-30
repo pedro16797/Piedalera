@@ -24,6 +24,7 @@ add_executable(piedalera
     src/splash.c
     src/storage.c
     src/ui.c
+    src/widgets.c
 )
 
 target_include_directories(piedalera PRIVATE src)
