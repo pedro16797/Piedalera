@@ -1,12 +1,12 @@
 # Piedalera
 
-C firmware (Pico SDK) for a Raspberry Pi Pico MIDI pedalboard, ported from
+C firmware (Pico SDK) for a Raspberry Pi Pico MIDI pedalboard. It supersedes
 the MicroPython firmware in `legacy/`.
 
-- `legacy/` is read-only reference; never edit it. `legacy/main.py` is what runs on the pedalboard; `Piedalera.py` is an older version.
+- `legacy/` is read-only reference; never edit it, and don't document its history.
 - Current hardware: `hardware/picorgano/` (KiCad), described in `docs/hardware.md`; defaults target it.
-- Behaviour spec: `docs/legacy-behaviour.md`. Legacy bugs: `docs/legacy-issues.md`.
-- Keep `docs/architecture.md` and `docs/roadmap.md` in sync with `src/`.
+- Keep `docs/playing.md`, `docs/architecture.md` and `docs/roadmap.md` in sync with `src/`.
+- Docs are for users first: short, no history, no detail they don't need.
 - Core 0 is real time (input, notes, MIDI); core 1 does the display and flash writes. The firmware runs from RAM (`copy_to_ram`); nothing may read flash after boot except `storage.c` on core 1.
 - Logic modules stay free of Pico SDK includes so the host tests in `test/` can build them.
 - Settings keys and ranges are defined in both `tools/config2uf2.py` and `src/settings.c`; change them together with `docs/configuration.md` and `config/piedalera.ini`.

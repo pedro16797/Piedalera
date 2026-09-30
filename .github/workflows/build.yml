@@ -1,11 +1,20 @@
 name: Build
 
+# master, pull requests into it and release tags; not for docs-only changes
 on:
   push:
-    branches: ["**"]
+    branches: [master]
     tags: ["v*"]
+    paths-ignore: ["**.md", "hardware/**", "legacy/**"]
   pull_request:
+    branches: [master]
+    paths-ignore: ["**.md", "hardware/**", "legacy/**"]
   workflow_dispatch:
+
+# A newer push cancels the run still going for the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   PICO_SDK_VERSION: "2.3.1"
@@ -34,15 +43,8 @@ jobs:
           cmake --build build-preview --target diagrams
           git diff --exit-code docs/images src/*_sprites.h
 
-  preview:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-
       - name: Render display preview
-        run: |
-          cmake -S tools/preview -B build-preview
-          cmake --build build-preview --target preview-run
+        run: cmake --build build-preview --target preview-run
 
       - uses: actions/upload-artifact@v4
         with:
