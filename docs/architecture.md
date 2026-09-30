@@ -61,6 +61,8 @@ the drawing modules also run in the display preview (`tools/preview`).
   share running status; the status byte is repeated after 1 s of silence.
   Power-up sends All Notes Off and All Sound Off.
 - **Config mode** clamps values and leaves when any other key is released.
+  On a setting's screen a G' tap, or 3 s untouched (the last second on the
+  border), goes back to the map instead.
 - **Holds:** while both octave buttons or G' are held towards their 1 s
   action, the snapshot carries the progress and core 1 inverts that share of
   the screen border, clockwise from the top middle.

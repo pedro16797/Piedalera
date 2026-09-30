@@ -245,6 +245,7 @@ static void test_hold(void) {
     keyboard_press(KEY_HOLD, 3);
     keyboard_release(KEY_HOLD, 3);
     CHECK(keyboard_hold());
+    CHECK(!(keyboard_marks() & INPUT_BIT(KEY_HOLD)));  // shown as HOLD only
 
     keyboard_press(0, 3);
     keyboard_release(0, 3);
@@ -409,36 +410,58 @@ static void test_app(void) {
     tick(INPUT_BIT(14), 13900);             // first repeat after 500 ms
     tick(0, 13910);
     CHECK(s.keys_debounce_ms == 4);
-    tick(INPUT_BIT(KEY_BOOTSEL), 14000);
-    tick(INPUT_BIT(KEY_BOOTSEL), 14999);
+
+    // Untouched for 3 s, a setting's screen goes back to the map, showing
+    // the last second on the border
+    tick(0, 15899);
+    app_ui_state(&ui);
+    CHECK(ui.msg == CONFIG_MSG_DEBOUNCE && ui.progress == 0);
+    tick(0, 16400);
+    app_ui_state(&ui);
+    CHECK(ui.progress == 127);
+    tick(0, 16900);
+    app_ui_state(&ui);
+    CHECK(ui.config && ui.msg == CONFIG_MSG_TITLE && ui.progress == 0);
+    tick(INPUT_BIT(16), 17000);             // and back to debounce
+    tick(0, 17100);
+    CHECK(s.keys_debounce_ms == 5);
+    app_ui_state(&ui);
+    CHECK(ui.msg == CONFIG_MSG_DEBOUNCE);
+    // A G' tap goes back to the map from a setting, and leaves from the map
+    tick(INPUT_BIT(KEY_BOOTSEL), 18000);
+    tick(INPUT_BIT(KEY_BOOTSEL), 18999);
     CHECK(!app_bootsel());
-    tick(0, 15000);
+    tick(0, 19000);
+    app_ui_state(&ui);
+    CHECK(ui.config && ui.msg == CONFIG_MSG_TITLE);
+    tick(INPUT_BIT(KEY_BOOTSEL), 19100);
+    tick(0, 19200);
     app_ui_state(&ui);
     CHECK(!ui.config && !app_bootsel());
-    tick(0, 15001);                         // octave buttons unblock
+    tick(0, 19201);                         // octave buttons unblock
 
     // Holding G' for a second asks for the bootloader
-    for (uint32_t t = 16000; t <= 17000; t += 10) tick(both, t);
-    tick(0, 17100);
+    for (uint32_t t = 20000; t <= 21000; t += 10) tick(both, t);
+    tick(0, 21100);
     // USB FLASH shows after 0.1 s and the settings are saved then; the
     // reboot comes as the border closes
-    tick(INPUT_BIT(KEY_BOOTSEL), 18000);
-    tick(INPUT_BIT(KEY_BOOTSEL), 18099);
+    tick(INPUT_BIT(KEY_BOOTSEL), 22000);
+    tick(INPUT_BIT(KEY_BOOTSEL), 22099);
     app_ui_state(&ui);
-    CHECK(ui.msg != CONFIG_MSG_BOOTSEL && !app_save_due(18099));
-    tick(INPUT_BIT(KEY_BOOTSEL), 18100);
+    CHECK(ui.msg != CONFIG_MSG_BOOTSEL && !app_save_due(22099));
+    tick(INPUT_BIT(KEY_BOOTSEL), 22100);
     app_ui_state(&ui);
     CHECK(ui.msg == CONFIG_MSG_BOOTSEL);
-    CHECK(app_save_due(18100) && !app_save_due(18101));
-    tick(INPUT_BIT(KEY_BOOTSEL), 18250);
-    CHECK(!app_bootsel() && !app_save_due(18250));
+    CHECK(app_save_due(22100) && !app_save_due(22101));
+    tick(INPUT_BIT(KEY_BOOTSEL), 22250);
+    CHECK(!app_bootsel() && !app_save_due(22250));
     app_ui_state(&ui);
     CHECK(ui.progress == 63);
-    tick(INPUT_BIT(KEY_BOOTSEL), 19000);
+    tick(INPUT_BIT(KEY_BOOTSEL), 23000);
     CHECK(app_bootsel());
     app_ui_state(&ui);
     CHECK(ui.config && ui.msg == CONFIG_MSG_BOOTSEL && ui.progress == 255);
-    tick(0, 19100);                         // stays put until the reboot
+    tick(0, 23100);                         // stays put until the reboot
     CHECK(app_bootsel());
 }
 

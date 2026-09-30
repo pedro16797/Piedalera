@@ -65,7 +65,7 @@ static void chord_hold(ui_state_t *st, uint32_t t) {
     st->hold = true;
     st->root = 0;
     st->keys = KEY(0);
-    st->marks = KEY(0) | KEY(4) | KEY(7) | KEY(11) | KEY(12) | KEY(19);
+    st->marks = KEY(0) | KEY(4) | KEY(7) | KEY(11) | KEY(12);
 }
 
 static void config_title(ui_state_t *st, uint32_t t) {
@@ -103,6 +103,17 @@ static void config_debounce(ui_state_t *st, uint32_t t) {
     st->msg_value = 5;
 }
 
+// Brightness left untouched: the border fills in the last second, then the map
+static void config_idle(ui_state_t *st, uint32_t t) {
+    config_title(st, t);
+    if (t < CONFIG_IDLE_MS) {
+        st->msg = CONFIG_MSG_BRIGHTNESS;
+        st->msg_value = 7;
+        uint32_t border = CONFIG_IDLE_MS - CONFIG_IDLE_BORDER_MS;
+        st->progress = t > border ? (t - border) * 255 / CONFIG_IDLE_BORDER_MS : 0;
+    }
+}
+
 // Both octave buttons held towards config mode, 60 % of the way
 static void normal_hold(ui_state_t *st, uint32_t t) {
     (void)t;
@@ -137,6 +148,7 @@ static const scene_t SCENES[] = {
     { "config-velocity",   0,    0,  config_velocity, NULL },
     { "config-transpose",  0,    0,  config_transpose, NULL },
     { "config-debounce",   0,    0,  config_debounce, NULL },
+    { "config-idle",       3500, 10, config_idle, NULL },
     { "config-hold",       1200, 30, config_hold, NULL },
     { "config-bootsel",    0,    0,  config_bootsel, NULL },
     { "splash", SPLASH_FRAMES * SPLASH_FRAME_MS, 1000 / SPLASH_FRAME_MS, NULL, splash_draw },

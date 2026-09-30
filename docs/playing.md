@@ -33,7 +33,7 @@ h7 Half-diminished 7th, 7 Seventh) and turn hold on or off (H).
 
 | Pedals | Setting (range) |
 |--------|-----------------|
-| C / D | Screen brightness, `Shine` (0–16) |
+| C / D | Screen brightness, `Contrast` (0–16) |
 | E / F | Velocity (1–127) |
 | G / A | Sound variation, `Bank` (0–127) |
 | B / C' | Transpose, `Transp.` (−12 to +12) |
@@ -41,5 +41,6 @@ h7 Half-diminished 7th, 7 Seventh) and turn hold on or off (H).
 | G' held | USB flash mode, to install new firmware |
 
 The left pedal of each pair turns the setting down, the right one up; hold
-to keep changing. Any other pedal, or a tap on G', leaves config mode and
-saves.
+to keep changing. A tap on G', or 3 seconds without touching anything, goes
+back to the map above. From the map, a tap on G' or any other pedal leaves
+config mode and saves.

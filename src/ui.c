@@ -20,7 +20,7 @@ typedef struct {
 } config_item_t;
 
 static const config_item_t CONFIG_ITEMS[] = {
-    [CONFIG_MSG_BRIGHTNESS] = { &SPRITE_BULB,      "Shine",      0,  16 },
+    [CONFIG_MSG_BRIGHTNESS] = { &SPRITE_BULB,      "Contrast",   0,  16 },
     [CONFIG_MSG_VELOCITY]   = { &SPRITE_VELOCITY,  "Velocity",   1, 127 },
     [CONFIG_MSG_BANK]       = { &SPRITE_BANK,      "Bank",       0, 127 },
     [CONFIG_MSG_TRANSPOSE]  = { &SPRITE_TRANSPOSE, "Transp.",  -12,  12 },
@@ -134,7 +134,7 @@ static void screen(gfx_t *g, const ui_state_t *st) {
     widget_keyboard(g, kb_x(g), 0, KB_H, st->keys, st->marks);
 
     // Octave on the bottom line in both modes
-    put_int(put_str(line, "Octava: "), st->octave, false);
+    put_int(put_str(line, "Octave: "), st->octave, false);
     gfx_text(g, 0, TEXT_Y + 9, line);
     if (!st->chord_mode) {
         return;
