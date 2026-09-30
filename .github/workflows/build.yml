@@ -1,0 +1,91 @@
+name: Build
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  PICO_SDK_VERSION: "2.3.1"
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        board: [pico, pico_w, pico2, pico2_w]
+    env:
+      PICO_SDK_PATH: ${{ github.workspace }}/.deps/pico-sdk
+      PICOTOOL_FETCH_FROM_GIT_PATH: ${{ github.workspace }}/.deps/picotool
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib
+
+      # SDK and the picotool build it needs, reused across runs
+      - name: Cache Pico SDK
+        id: deps
+        uses: actions/cache@v4
+        with:
+          path: .deps
+          key: pico-sdk-${{ env.PICO_SDK_VERSION }}-${{ runner.os }}
+
+      - name: Fetch Pico SDK
+        if: steps.deps.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch "$PICO_SDK_VERSION" \
+            https://github.com/raspberrypi/pico-sdk "$PICO_SDK_PATH"
+          git -C "$PICO_SDK_PATH" submodule update --init --depth 1 lib/tinyusb
+
+      - name: Build firmware
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD=${{ matrix.board }}
+          cmake --build build --parallel
+
+      - name: Build default config
+        run: |
+          python3 tools/config2uf2.py --board ${{ matrix.board }} \
+            config/piedalera.ini build/piedalera-config.uf2
+
+      - name: Collect outputs
+        run: |
+          mkdir dist
+          cp build/piedalera.uf2 dist/piedalera-${{ matrix.board }}.uf2
+          cp build/piedalera.elf dist/piedalera-${{ matrix.board }}.elf
+          cp build/piedalera-config.uf2 dist/piedalera-${{ matrix.board }}-config.uf2
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: piedalera-${{ matrix.board }}
+          path: dist/
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      # Settings kit for users: edit the ini, double-click the script
+      - name: Add settings tool
+        run: cp config/piedalera.ini tools/config2uf2.py dist/
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --generate-notes --repo "$GITHUB_REPOSITORY"
