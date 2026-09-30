@@ -35,6 +35,13 @@ static const char *const MSG_LABELS[] = {
     [CONFIG_MSG_VELOCITY]   = "Velocity ",
     [CONFIG_MSG_BANK]       = "Bank ",
     [CONFIG_MSG_TRANSPOSE]  = "Transpose ",
+    [CONFIG_MSG_DEBOUNCE]   = "Debounce ",
+    [CONFIG_MSG_BOOTSEL]    = "USB FLASH MODE",
+};
+
+// Shown after the value
+static const char *const MSG_UNITS[] = {
+    [CONFIG_MSG_DEBOUNCE]   = " ms",
 };
 
 void ui_render(gfx_t *g, const ui_state_t *st) {
@@ -50,8 +57,12 @@ void ui_render(gfx_t *g, const ui_state_t *st) {
 
     if (st->config) {
         char *p = put_str(line, MSG_LABELS[st->msg]);
-        if (st->msg != CONFIG_MSG_TITLE) {
-            put_int(p, st->msg_value);
+        if (st->msg != CONFIG_MSG_TITLE && st->msg != CONFIG_MSG_BOOTSEL) {
+            p = put_int(p, st->msg_value);
+            if (st->msg < sizeof(MSG_UNITS) / sizeof(MSG_UNITS[0]) &&
+                MSG_UNITS[st->msg]) {
+                put_str(p, MSG_UNITS[st->msg]);
+            }
         }
         gfx_text(g, 0, ROW(2), line);
     } else if (st->chord_mode) {

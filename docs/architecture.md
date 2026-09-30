@@ -83,7 +83,12 @@ Hardware-independent modules are also built into the host tests (`test/`);
   0–127 are dropped and data bytes are masked to 7 bits (fixes #3, #15).
 - **Power-up** sends All Notes Off and All Sound Off.
 - **Config mode** keeps the legacy keys and timings, clamps instead of
-  wrapping (fixes #4, #11) and leaves when any other key is released.
+  wrapping (fixes #4, #11) and leaves when any other key is released. D'
+  and E' adjust the debounce time, which applies immediately.
+- **USB flash mode:** holding G' for 1 s in config mode asks core 1 to save
+  the settings, waits for it (up to 2 s), gives the screen 100 ms to show
+  `USB FLASH MODE` and calls `reset_usb_boot()`, so firmware can be updated
+  without pressing BOOTSEL.
 - **Settings** live in the second to last flash sector as `key = value` text
   (see [`configuration.md`](configuration.md)), so they can be flashed as a
   separate UF2 without rebuilding. Invalid values fall back to defaults key

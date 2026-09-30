@@ -56,12 +56,17 @@ For example, for a Pico 2 you need `piedalera-pico2.uf2` and
    starts. This is normal. If your computer says the drive wasn't ejected
    properly, ignore it.
 
-Updating to a newer version later is the same process. Your settings are kept.
+Updating to a newer version later works the same way, and your settings are
+kept. Once the pedalboard runs this firmware you don't need the BOOTSEL
+button any more: with the USB cable plugged into the computer, enter config
+mode (hold both octave buttons for a second) and hold **G'** for a second.
+The screen shows `USB FLASH MODE` and the drive appears.
 
 ## 4. Install the settings
 
 The first time, do the same as in step 3 but drag
-`piedalera-<board>-config.uf2` instead. This loads the default settings.
+`piedalera-<board>-config.uf2` instead (or use config mode and G' as
+described there). This loads the default settings.
 
 ## 5. Change settings (optional)
 

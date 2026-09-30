@@ -11,6 +11,7 @@
 
 static settings_t *settings;
 static bool config;
+static bool bootsel;
 static bool save_pending;
 static uint32_t save_at;
 
@@ -22,6 +23,7 @@ static void request_save(uint32_t now, uint32_t delay) {
 void app_init(settings_t *s) {
     settings = s;
     config = false;
+    bootsel = false;
     save_pending = false;
     notes_init(s->midi_channel - 1);
     notes_panic();
@@ -40,13 +42,23 @@ static void enter_config(bool undo_toggle) {
 }
 
 void app_update(const input_state_t *in, uint32_t now) {
+    if (bootsel) {
+        return;
+    }
     if (config) {
-        if (!config_mode_update(in, now)) {
+        switch (config_mode_update(in, now)) {
+        case CONFIG_EXIT:
             config = false;
             octave_block();
             if (config_mode_changed()) {
                 request_save(now, 0);
             }
+            break;
+        case CONFIG_BOOTSEL:
+            bootsel = true;
+            break;
+        default:
+            break;
         }
         return;
     }
@@ -92,6 +104,10 @@ void app_ui_state(ui_state_t *out) {
         out->msg = config_mode_msg(&value);
         out->msg_value = value;
     }
+}
+
+bool app_bootsel(void) {
+    return bootsel;
 }
 
 bool app_save_due(uint32_t now) {

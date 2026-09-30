@@ -1,7 +1,7 @@
 #include "config_mode.h"
 #include "midi.h"
 
-typedef enum { BRIGHTNESS, VELOCITY, BANK, TRANSPOSE } target_t;
+typedef enum { BRIGHTNESS, VELOCITY, BANK, TRANSPOSE, DEBOUNCE } target_t;
 
 typedef struct {
     uint8_t key;
@@ -10,7 +10,7 @@ typedef struct {
     uint16_t first_ms, repeat_ms;   // first auto-repeat, then each one after
 } function_t;
 
-// Same keys and timings as the legacy firmware
+// Legacy keys and timings, plus debounce on D' and E'
 static const function_t FUNCTIONS[] = {
     {  0, BRIGHTNESS, -16, 500, 200 },  // C
     {  2, BRIGHTNESS,  16, 500, 200 },  // D
@@ -20,6 +20,8 @@ static const function_t FUNCTIONS[] = {
     {  9, BANK,         1, 500, 200 },  // A
     { 11, TRANSPOSE,   -1, 500, 200 },  // B
     { 12, TRANSPOSE,    1, 200, 100 },  // C'
+    { 14, DEBOUNCE,    -1, 500, 100 },  // D'
+    { 16, DEBOUNCE,     1, 500, 100 },  // E'
 };
 
 #define FUNCTION_COUNT (sizeof(FUNCTIONS) / sizeof(FUNCTIONS[0]))
@@ -29,6 +31,7 @@ static settings_t *settings;
 static uint32_t next_step[FUNCTION_COUNT];
 static uint32_t repeating;  // function keys pressed since entering
 static uint8_t exit_key;
+static uint32_t exit_down_at;
 static bool changed;
 static config_msg_t msg;
 static int msg_value;
@@ -70,16 +73,21 @@ static void apply(const function_t *f) {
             midi_cc(ch, MIDI_CC_BANK_LSB, after);
         }
         break;
-    default:
+    case TRANSPOSE:
         before = s->midi_transpose;
         after = msg_value = s->midi_transpose = clamp(before + f->delta, -12, 12);
         msg = CONFIG_MSG_TRANSPOSE;
+        break;
+    default:
+        before = s->keys_debounce_ms;
+        after = msg_value = s->keys_debounce_ms = clamp(before + f->delta, 0, 50);
+        msg = CONFIG_MSG_DEBOUNCE;
         break;
     }
     changed |= after != before;
 }
 
-bool config_mode_update(const input_state_t *in, uint32_t now) {
+config_result_t config_mode_update(const input_state_t *in, uint32_t now) {
     uint32_t down = in->down & KEYS_MASK;
     repeating &= in->pressed;
 
@@ -100,8 +108,19 @@ bool config_mode_update(const input_state_t *in, uint32_t now) {
     // Any other key: leave when it is released
     if (down && exit_key == NO_KEY) {
         exit_key = __builtin_ctz(down);
+        exit_down_at = now;
     }
-    return !(exit_key != NO_KEY && (in->up & INPUT_BIT(exit_key)));
+    if (exit_key == NO_KEY) {
+        return CONFIG_STAY;
+    }
+    if (in->up & INPUT_BIT(exit_key)) {
+        return CONFIG_EXIT;
+    }
+    if (exit_key == KEY_BOOTSEL && now - exit_down_at >= BOOTSEL_HOLD_MS) {
+        msg = CONFIG_MSG_BOOTSEL;
+        return CONFIG_BOOTSEL;
+    }
+    return CONFIG_STAY;
 }
 
 bool config_mode_changed(void) {

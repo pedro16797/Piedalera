@@ -46,7 +46,7 @@ reset to the default by the firmware.
 | `octave.repeat_ms`   | 500     | 50–5000            | Auto-repeat interval while held |
 | `keys.active_low`    | true    | true / false       | Pressed reads low (`true`) or high (`false`) |
 | `keys.pull`          | none    | up / down / none   | Internal pull resistor on key and octave inputs |
-| `keys.debounce_ms`   | 5       | 0–50               | Time an input must be stable to count |
+| `keys.debounce_ms`   | 5       | 0–50               | Time an input must be stable to count; also adjustable in config mode |
 
 Octave `n` puts key 0 (C) on MIDI note `12 * (n + 1) + transpose`, so the
 default 3 is C3 (MIDI 48). Notes outside MIDI 0–127 are not sent.

@@ -47,3 +47,9 @@ port expanders.
 - UART0 RX (GP17) is taken by octave up, so there is no MIDI in. Moving the
   octave button would allow MIDI in or MIDI thru with an optocoupler.
 - USB MIDI needs no extra hardware; the firmware can add it later.
+
+## USB on the outside
+
+Holding G' in config mode puts the Pico in USB flash mode, so firmware
+updates only need a USB cable. A panel-mount USB extension from the Pico's
+socket to the case makes that possible without opening the pedalboard.

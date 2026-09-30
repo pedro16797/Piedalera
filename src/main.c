@@ -5,6 +5,7 @@
 #include "display.h"
 #include "hardware/sync.h"
 #include "midi.h"
+#include "pico/bootrom.h"
 #include "pico/multicore.h"
 #include "settings.h"
 #include "ui.h"
@@ -12,6 +13,8 @@
 #define SCAN_PERIOD_US      1000
 #define FRAME_PERIOD_US     16667   // 60 fps cap
 #define DISPLAY_RETRY_MS    500
+#define BOOTSEL_SAVE_WAIT_MS 2000
+#define BOOTSEL_SHOW_MS     100     // time for the display to show why
 
 static settings_t settings;
 
@@ -21,6 +24,7 @@ static ui_state_t shared_ui;
 static uint32_t ui_version;
 static settings_t shared_save;
 static bool save_requested;
+static uint32_t saves_done;
 
 static void publish_ui(const ui_state_t *st) {
     uint32_t irq = spin_lock_blocking(lock);
@@ -68,6 +72,9 @@ static void core1_main(void) {
 
         if (save) {
             settings_save(&to_save);
+            irq = spin_lock_blocking(lock);
+            saves_done++;
+            spin_unlock(lock, irq);
         }
 
         display_poll();
@@ -92,6 +99,26 @@ static void core1_main(void) {
         }
         sleep_until(next);
     }
+}
+
+static uint32_t get_saves_done(void) {
+    uint32_t irq = spin_lock_blocking(lock);
+    uint32_t n = saves_done;
+    spin_unlock(lock, irq);
+    return n;
+}
+
+// Save the settings, let the screen show the message, then reboot into the
+// USB bootloader so new firmware can be copied onto the drive
+static void reboot_to_bootsel(void) {
+    uint32_t before = get_saves_done();
+    request_save(&settings);
+    absolute_time_t timeout = make_timeout_time_ms(BOOTSEL_SAVE_WAIT_MS);
+    while (get_saves_done() == before && !time_reached(timeout)) {
+        tight_loop_contents();
+    }
+    sleep_ms(BOOTSEL_SHOW_MS);
+    reset_usb_boot(0, 0);
 }
 
 // Core 0: inputs, note logic and MIDI, every millisecond
@@ -127,6 +154,9 @@ int main(void) {
         }
         if (app_save_due(now)) {
             request_save(&settings);
+        }
+        if (app_bootsel()) {
+            reboot_to_bootsel();
         }
         sleep_until(next);
     }

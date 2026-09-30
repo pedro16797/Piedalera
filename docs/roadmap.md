@@ -29,6 +29,7 @@ Reproduces `legacy/main.py` in C with the bugs in
 - [x] Configurable MIDI channel
 - [x] Settings validation
 - [x] MIDI panic at power-up
+- [x] Debounce time and USB flash mode from config mode
 - [ ] MIDI panic on demand
 - [ ] Watchdog
 - [ ] Wear levelling for the settings sector, if octave saves turn out frequent

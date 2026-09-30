@@ -71,6 +71,17 @@ static void config_transpose(ui_state_t *st, uint32_t t) {
     st->msg_value = -3;
 }
 
+static void config_debounce(ui_state_t *st, uint32_t t) {
+    config_title(st, t);
+    st->msg = CONFIG_MSG_DEBOUNCE;
+    st->msg_value = 5;
+}
+
+static void config_bootsel(ui_state_t *st, uint32_t t) {
+    config_title(st, t);
+    st->msg = CONFIG_MSG_BOOTSEL;
+}
+
 // Shows playback works; replace with real animations as they are written
 static void octave_sweep(ui_state_t *st, uint32_t t) {
     base(st);
@@ -85,6 +96,8 @@ static const scene_t SCENES[] = {
     { "config",           0,    0,  config_title },
     { "config-velocity",  0,    0,  config_velocity },
     { "config-transpose", 0,    0,  config_transpose },
+    { "config-debounce",  0,    0,  config_debounce },
+    { "config-bootsel",   0,    0,  config_bootsel },
     { "octave-sweep",     4000, 30, octave_sweep },
 };
 

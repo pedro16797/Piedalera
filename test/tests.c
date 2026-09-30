@@ -392,6 +392,38 @@ static void test_app(void) {
     CHECK(s.octave_current == 4);
     CHECK(!app_save_due(11099));
     CHECK(app_save_due(11100));
+
+    // Back into config: debounce on D'/E', then a short G' press leaves
+    for (uint32_t t = 12000; t <= 13000; t += 10) tick(both, t);
+    tick(0, 13100);
+    tick(INPUT_BIT(16), 13200);
+    tick(0, 13300);
+    CHECK(s.keys_debounce_ms == 6);
+    app_ui_state(&ui);
+    CHECK(ui.msg == CONFIG_MSG_DEBOUNCE && ui.msg_value == 6);
+    tick(INPUT_BIT(14), 13400);
+    tick(INPUT_BIT(14), 13900);             // first repeat after 500 ms
+    tick(0, 13910);
+    CHECK(s.keys_debounce_ms == 4);
+    tick(INPUT_BIT(KEY_BOOTSEL), 14000);
+    tick(INPUT_BIT(KEY_BOOTSEL), 14999);
+    CHECK(!app_bootsel());
+    tick(0, 15000);
+    app_ui_state(&ui);
+    CHECK(!ui.config && !app_bootsel());
+    tick(0, 15001);                         // octave buttons unblock
+
+    // Holding G' for a second asks for the bootloader
+    for (uint32_t t = 16000; t <= 17000; t += 10) tick(both, t);
+    tick(0, 17100);
+    tick(INPUT_BIT(KEY_BOOTSEL), 18000);
+    CHECK(!app_bootsel());
+    tick(INPUT_BIT(KEY_BOOTSEL), 19000);
+    CHECK(app_bootsel());
+    app_ui_state(&ui);
+    CHECK(ui.config && ui.msg == CONFIG_MSG_BOOTSEL);
+    tick(0, 19100);                         // stays put until the reboot
+    CHECK(app_bootsel());
 }
 
 // Display
