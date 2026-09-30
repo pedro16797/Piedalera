@@ -9,20 +9,41 @@ set(CMAKE_C_STANDARD 11)
 pico_sdk_init()
 
 add_executable(piedalera
+    src/app.c
+    src/config_mode.c
+    src/debounce.c
+    src/display.c
+    src/gfx.c
+    src/input.c
+    src/keyboard.c
     src/main.c
+    src/midi.c
+    src/notes.c
+    src/octave.c
+    src/settings.c
+    src/storage.c
+    src/ui.c
 )
 
 target_include_directories(piedalera PRIVATE src)
-target_compile_options(piedalera PRIVATE -Wall -Wextra)
+target_compile_options(piedalera PRIVATE -Wall -Wextra -O2)
 
 target_link_libraries(piedalera
     pico_stdlib
     pico_multicore
+    hardware_dma
+    hardware_flash
     hardware_i2c
+    hardware_sync
 )
 
-# UART0 carries MIDI and GP0/GP1 are key inputs, so stdio goes over USB only.
-pico_enable_stdio_usb(piedalera 1)
+# Run entirely from RAM: no flash cache misses, and flash writes on core 1
+# can't stall core 0
+pico_set_binary_type(piedalera copy_to_ram)
+
+# UART0 carries MIDI and GP0/GP1 are keys; no stdio keeps core 0 free of
+# USB interrupts
+pico_enable_stdio_usb(piedalera 0)
 pico_enable_stdio_uart(piedalera 0)
 
 pico_add_extra_outputs(piedalera)
