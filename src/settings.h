@@ -25,6 +25,7 @@ typedef struct {
     bool keys_active_low;
     uint8_t keys_pull;          // pull_t
     uint8_t keys_debounce_ms;
+    uint16_t power_sleep_s;     // 0: never
 } settings_t;
 
 #define SETTINGS_TEXT_MAX 4096

@@ -396,7 +396,8 @@ static void test_app(void) {
     tick(0, 6110);
     CHECK(s.octave_current == 4);
     CHECK(!app_save_due(11099));
-    CHECK(app_save_due(11100));
+    CHECK(app_save_pending() && !app_save_pending());   // taken early, e.g. to sleep
+    CHECK(!app_save_due(11100));
 
     // Back into config: debounce on D'/E', then a short G' press leaves
     for (uint32_t t = 12000; t <= 13000; t += 10) tick(both, t);
@@ -463,6 +464,7 @@ static void test_app(void) {
     CHECK(ui.config && ui.msg == CONFIG_MSG_BOOTSEL && ui.progress == 255);
     tick(0, 23100);                         // stays put until the reboot
     CHECK(app_bootsel());
+    CHECK(app_idle_ms(23600) == 500);       // since G' was released
 }
 
 // Display

@@ -4,9 +4,11 @@
 #include "board.h"
 #include "display.h"
 #include "hardware/sync.h"
+#include "input.h"
 #include "midi.h"
 #include "pico/bootrom.h"
 #include "pico/multicore.h"
+#include "power.h"
 #include "settings.h"
 #include "splash.h"
 #include "ui.h"
@@ -14,10 +16,13 @@
 #define SCAN_PERIOD_US      1000
 #define FRAME_PERIOD_US     16667   // 60 fps cap
 #define DISPLAY_RETRY_MS    500
-#define BOOTSEL_SAVE_WAIT_MS 2000
+#define SAVE_WAIT_MS        2000
 #define BOOTSEL_SHOW_WAIT_MS 50     // for the last frame to be drawn
 #define FRAME_SEND_MS       13      // I2C transfer of a 128x32 frame
 #define DIM_DIVISOR         4       // idle contrast is brightness / this
+#define PARK_WAIT_MS        200     // for core 1 to finish a frame and park
+#define WAKE_GRACE_MS       100     // to see the press that woke it
+#define SLEEP_RETRY_MS      1000
 
 static settings_t settings;
 
@@ -29,6 +34,8 @@ static settings_t shared_save;
 static bool save_requested;
 static uint32_t saves_done;
 static uint32_t ui_shown;   // last ui_version sent to the display
+static volatile bool park_requested;    // core 0 wants to stop the clocks
+static volatile bool parked;            // core 1 is idle for it
 
 static void publish_ui(const ui_state_t *st) {
     uint32_t irq = spin_lock_blocking(lock);
@@ -93,6 +100,21 @@ static void core1_main(void) {
         }
         if (fresh) {
             ui_anim_update(&anim, &st, now);
+        }
+
+        // Deep sleep: screen off, then wait here while the clocks stop
+        if (park_requested) {
+            if (!asleep && display_ok()) {
+                display_power(false);
+            }
+            asleep = true;
+            parked = true;
+            while (park_requested) {
+                tight_loop_contents();
+            }
+            parked = false;
+            next = get_absolute_time();
+            continue;
         }
 
         display_poll();
@@ -173,17 +195,21 @@ static bool ui_up_to_date(void) {
     return done;
 }
 
+static void save_and_wait(void) {
+    uint32_t before = get_saves_done();
+    request_save(&settings);
+    absolute_time_t timeout = make_timeout_time_ms(SAVE_WAIT_MS);
+    while (get_saves_done() == before && !time_reached(timeout)) {
+        tight_loop_contents();
+    }
+}
+
 // Save the settings (already done while USB FLASH showed, unless they changed
 // since), let the screen show the full border, then reboot into the USB
 // bootloader so new firmware can be copied onto the drive
 static void reboot_to_bootsel(void) {
-    uint32_t before = get_saves_done();
-    request_save(&settings);
-    absolute_time_t timeout = make_timeout_time_ms(BOOTSEL_SAVE_WAIT_MS);
-    while (get_saves_done() == before && !time_reached(timeout)) {
-        tight_loop_contents();
-    }
-    timeout = make_timeout_time_ms(BOOTSEL_SHOW_WAIT_MS);
+    save_and_wait();
+    absolute_time_t timeout = make_timeout_time_ms(BOOTSEL_SHOW_WAIT_MS);
     while (!ui_up_to_date() && !time_reached(timeout)) {
         tight_loop_contents();
     }
@@ -191,8 +217,34 @@ static void reboot_to_bootsel(void) {
     reset_usb_boot(0, 0);
 }
 
+// Save what's pending, let core 1 turn the screen off and park, then stop
+// the clocks until an input is pressed. False if core 1 didn't park.
+static bool deep_sleep(void) {
+    if (app_save_pending()) {
+        save_and_wait();
+    }
+    park_requested = true;
+    absolute_time_t timeout = make_timeout_time_ms(PARK_WAIT_MS);
+    while (!parked && !time_reached(timeout)) {
+        tight_loop_contents();
+    }
+    bool ok = parked;
+    if (ok) {
+        // Armed before checking, so a press from here on wakes it at once
+        input_wake(true);
+        ok = input_read() == 0;
+        if (ok) {
+            power_dormant();
+        }
+        input_wake(false);
+    }
+    park_requested = false;
+    return ok;
+}
+
 // Core 0: inputs, note logic and MIDI, every millisecond
 int main(void) {
+    power_init();
     settings_load(&settings);
     input_init(settings.keys_pull, settings.keys_active_low);
     midi_init();
@@ -208,6 +260,7 @@ int main(void) {
     debounce_t debounce;
     debounce_init(&debounce, input_read());
     absolute_time_t next = get_absolute_time();
+    uint32_t retry_at = 0;      // next time to check whether to sleep
 
     while (true) {
         next = delayed_by_us(next, SCAN_PERIOD_US);
@@ -216,6 +269,14 @@ int main(void) {
         input_state_t in = debounce_update(&debounce, input_read(), now,
                                            settings.keys_debounce_ms);
         app_update(&in, now);
+        // After power.sleep_s without input, sleep until the next press. The
+        // timer stood still meanwhile, so give the waking press a moment to
+        // show before sleeping again.
+        if (settings.power_sleep_s && (int32_t)(now - retry_at) >= 0 &&
+            app_idle_ms(now) >= settings.power_sleep_s * 1000u) {
+            retry_at = now + (deep_sleep() ? WAKE_GRACE_MS : SLEEP_RETRY_MS);
+            next = get_absolute_time();
+        }
 
         app_ui_state(&ui);
         if (memcmp(&ui, &last_ui, sizeof(ui)) != 0) {

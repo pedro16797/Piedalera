@@ -36,6 +36,7 @@ saved to the same place.
 | `keys.active_low`    | true    | true / false       | Pressed reads low |
 | `keys.pull`          | none    | up / down / none   | Internal pull resistor on the inputs |
 | `keys.debounce_ms`   | 5       | 0–50               | Time an input must be stable to count |
+| `power.sleep_s`      | 600     | 0–7200             | Seconds without input before deep sleep (screen off, Pico stopped until a press); 0 never |
 
 Octave `n` puts C on MIDI note `12 * (n + 1) + transpose`. Missing keys take
 the default.

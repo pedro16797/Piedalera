@@ -1,0 +1,12 @@
+#pragma once
+
+#include <stdbool.h>
+
+// System clock at 48 MHz, and dormant sleep. Core 0 only.
+void power_init(void);
+
+// Stop every clock until an armed input wakes the chip (see input_wake),
+// then run at 48 MHz again. RAM and pins keep their state; the millisecond
+// timer stands still meanwhile. Core 1 must be idle.
+void power_dormant(void);
+

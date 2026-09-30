@@ -20,6 +20,7 @@ add_executable(piedalera
     src/midi.c
     src/notes.c
     src/octave.c
+    src/power.c
     src/settings.c
     src/splash.c
     src/storage.c
@@ -36,7 +37,9 @@ target_link_libraries(piedalera
     hardware_dma
     hardware_flash
     hardware_i2c
+    hardware_rosc
     hardware_sync
+    hardware_xosc
 )
 
 # Run entirely from RAM: no flash cache misses, and flash writes on core 1

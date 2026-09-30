@@ -2,8 +2,15 @@
 
 Everything the MicroPython firmware did is implemented and running on the
 pedalboard, plus a keyboard screen, start-up animation, mode and octave
-transitions, idle dimming, a debounce setting and USB flash mode from config
-mode.
+transitions, a debounce setting and USB flash mode from config mode, and
+for battery use: idle dimming, screen off and deep sleep.
+
+## To check on the hardware
+
+- [ ] Current draw playing, with the screen off and in deep sleep (crystal,
+  PLL and ring oscillator all stopped)
+- [ ] Waking from deep sleep on every board, and the press playing
+- [ ] USB flash mode after having been in deep sleep
 
 ## Next
 

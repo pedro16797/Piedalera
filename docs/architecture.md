@@ -28,6 +28,7 @@ the drawing modules also run in the display preview (`tools/preview`).
 | `input.c`       | 0    |      | GPIO setup, one read of all inputs |
 | `debounce.c`    | 0    | ✓    | Per-input debounce |
 | `midi.c`        | 0    |      | UART at 31250 baud, ring buffer drained by the TX interrupt |
+| `power.c`       | 0    |      | 48 MHz system clock, dormant sleep |
 | `notes.c`       | 0    | ✓    | Note on/off with a count per note, power-up panic |
 | `keyboard.c`    | 0    | ✓    | Normal and chord mode, chord table |
 | `octave.c`      | 0    | ✓    | Octave buttons, auto-repeat, both-buttons gesture |
@@ -75,6 +76,17 @@ the drawing modules also run in the display preview (`tools/preview`).
   a chord mode toggle shows `CHORD` or `NORMAL` large for 0.8 s, and a new
   octave slides in over 150 ms. Frames are sent every period while one
   runs.
+- **Clock:** 48 MHz from the USB PLL; the system PLL stays off.
+- **Deep sleep:** after `power.sleep_s` without input, core 0 writes any
+  pending settings, asks core 1 to turn the display off and park, flushes
+  MIDI, moves the clocks onto the crystal, stops the PLL and the ring
+  oscillator and puts the crystal to sleep (dormant). The ring oscillator
+  restarts on waking, since a watchdog reboot (USB flash mode) doesn't reset
+  it and needs it to start again. A press edge on any input wakes it; the clocks
+  come back at 48 MHz and the scan picks up the press, which plays as
+  usual, a few ms late. The timer stands still while dormant, so after
+  waking core 0 waits 100 ms for a press before sleeping again. If core 1
+  doesn't park within 200 ms, core 0 tries again a second later.
 - **Idle:** with no snapshot change for `display.dim_s` the contrast drops
   to a quarter, and after `display.off_s` the panel sleeps (0xAE) until the
   next change.

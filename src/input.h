@@ -34,3 +34,6 @@ typedef enum { PULL_NONE, PULL_UP, PULL_DOWN } pull_t;
 
 void input_init(pull_t pull, bool active_low);
 uint32_t input_read(void);
+
+// Arm (or disarm) every input to wake the chip from dormant when pressed
+void input_wake(bool on);

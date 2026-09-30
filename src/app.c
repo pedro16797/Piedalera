@@ -17,6 +17,7 @@ static bool save_pending;
 static uint32_t save_at;
 static uint32_t pressed;    // last debounced inputs, for the screen
 static uint8_t progress;    // of the current key hold, for the screen
+static uint32_t input_at;   // last time an input was held or released
 
 static void request_save(uint32_t now, uint32_t delay) {
     save_pending = true;
@@ -29,6 +30,7 @@ void app_init(settings_t *s) {
     bootsel = false;
     pressed = 0;
     progress = 0;
+    input_at = 0;
     save_pending = false;
     notes_init(s->midi_channel - 1);
     notes_panic();
@@ -53,6 +55,9 @@ static uint8_t hold_progress(uint32_t held, uint32_t total) {
 
 void app_update(const input_state_t *in, uint32_t now) {
     pressed = in->pressed;
+    if (in->pressed || in->up) {
+        input_at = now;
+    }
     if (bootsel) {
         return;
     }
@@ -139,8 +144,18 @@ void app_ui_state(ui_state_t *out) {
     }
 }
 
+uint32_t app_idle_ms(uint32_t now) {
+    return now - input_at;
+}
+
 bool app_bootsel(void) {
     return bootsel;
+}
+
+bool app_save_pending(void) {
+    bool pending = save_pending;
+    save_pending = false;
+    return pending;
 }
 
 bool app_save_due(uint32_t now) {

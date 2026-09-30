@@ -37,6 +37,7 @@ static const field_t FIELDS[] = {
     F("keys.active_low",    keys_active_low,    T_BOOL,  0,    1,    1),
     F("keys.pull",          keys_pull,          T_PULL,  0,    2, PULL_NONE),
     F("keys.debounce_ms",   keys_debounce_ms,   T_U8,    0,   50,    5),
+    F("power.sleep_s",      power_sleep_s,      T_U16,   0, 7200,  600),
 };
 
 #define FIELD_COUNT (sizeof(FIELDS) / sizeof(FIELDS[0]))
