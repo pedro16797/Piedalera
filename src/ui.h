@@ -1,0 +1,20 @@
+#pragma once
+
+#include <stdbool.h>
+#include <stdint.h>
+
+#include "gfx.h"
+
+// Snapshot of what the display shows, published by core 0
+typedef struct {
+    uint8_t octave;
+    bool chord_mode;
+    uint8_t chord;
+    bool hold;
+    bool config;
+    uint8_t msg;        // config_msg_t
+    int16_t msg_value;
+    uint8_t brightness;
+} ui_state_t;
+
+void ui_render(gfx_t *g, const ui_state_t *st);
