@@ -17,17 +17,13 @@ dimming, screen off and deep sleep.
 
 ## Next
 
+Each in its own pull request:
+
 - [ ] Expression pedal on GP28 / ADC2 (CC11, calibration)
 - [ ] Instrument presets (`instList` in `legacy/Piedalera.py`)
-- [ ] Wear levelling for the settings sector, if octave saves turn out
-  frequent
-
-## Later
-
-- **Drumpad link:** a second Pico forwards hits from a MIDI drumpad over
+- [ ] Drumpad link: a second Pico forwards hits from a MIDI drumpad over
   BLE MIDI, and the pedalboard turns them into bass notes, strums or
-  arpeggios of the current chord. Needs a W board; parked until the
-  keyboard works.
+  arpeggios of the current chord. Needs a W board.
 
 ## Open questions
 
