@@ -283,6 +283,9 @@ int main(void) {
         input_state_t in = debounce_update(&debounce, input_read(), now,
                                            settings.keys_debounce_ms);
         app_update(&in, now);
+        if (settings.expression_enabled) {
+            app_expression(input_expression(), now);
+        }
         // After power.sleep_s without input, sleep until the next press. The
         // timer stood still meanwhile, so give the waking press a moment to
         // show before sleeping again.

@@ -49,3 +49,10 @@ The left pedal of each pair turns the setting down, the right one up; hold
 to keep changing. A tap on G', or 3 seconds without touching anything, goes
 back to the map above. From the map, a tap on G' or any other pedal leaves
 config mode and saves.
+
+## Expression pedal
+
+With `expression.enabled` set, the pedal on EXP1 sends controller 11
+(Expression, or `expression.cc`) in every mode. After plugging in a new pedal, push it from heel
+to toe once so it learns its travel; it sends nothing until it has moved a
+little. In config mode, moving it shows its value.

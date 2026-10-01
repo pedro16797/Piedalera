@@ -3,12 +3,14 @@
 #include "app.h"
 #include "battery.h"
 #include "config_mode.h"
+#include "expression.h"
 #include "keyboard.h"
+#include "midi.h"
 #include "notes.h"
 #include "octave.h"
 
-// Octave changes are saved once the octave stays put this long
-#define OCTAVE_SAVE_DELAY_MS 5000
+// Octave and pedal travel changes are saved once they stay put this long
+#define SAVE_DELAY_MS 5000
 
 static settings_t *settings;
 static bool config;
@@ -39,6 +41,7 @@ void app_init(settings_t *s) {
     notes_panic();
     keyboard_init(s);
     octave_init(s);
+    expression_init();
 }
 
 // Entering config mode also silences the synth, for any note left stuck
@@ -106,7 +109,7 @@ void app_update(const input_state_t *in, uint32_t now) {
     progress = hold_progress(octave_hold_ms(now), OCTAVE_CONFIG_HOLD_MS);
     switch (event) {
     case OCTAVE_CHANGED:
-        request_save(now, OCTAVE_SAVE_DELAY_MS);
+        request_save(now, SAVE_DELAY_MS);
         break;
     case OCTAVE_TOGGLE_CHORD:
         keyboard_set_chord_mode(!keyboard_chord_mode());
@@ -160,6 +163,22 @@ void app_battery(uint32_t vsys_mv) {
     uint32_t mv = vsys_mv + settings->power_drop_mv;
     // Average over about 8 readings
     battery_mv = battery_mv ? battery_mv + ((int32_t)mv - (int32_t)battery_mv) / 8 : mv;
+}
+
+void app_expression(uint16_t raw, uint32_t now) {
+    uint16_t lo = settings->expression_min, hi = settings->expression_max;
+    int value = expression_update(settings, raw);
+    if (settings->expression_min != lo || settings->expression_max != hi) {
+        request_save(now, SAVE_DELAY_MS);
+    }
+    if (value < 0) {
+        return;
+    }
+    midi_cc(settings->midi_channel - 1, settings->expression_cc, value);
+    input_at = now;
+    if (config) {
+        config_mode_expression(value, now);
+    }
 }
 
 uint32_t app_idle_ms(uint32_t now) {

@@ -29,6 +29,7 @@ static const config_item_t CONFIG_ITEMS[] = {
     [CONFIG_MSG_TRANSPOSE]  = { &SPRITE_TRANSPOSE, "Transp.",  -12,  12 },
     [CONFIG_MSG_DEBOUNCE]   = { &SPRITE_DEBOUNCE,  "Debounce",   0,  50 },
     [CONFIG_MSG_BOOTSEL]    = { &SPRITE_FLASH,     NULL,         0,   0 },
+    [CONFIG_MSG_EXPRESSION] = { &SPRITE_EXPRESSION, "Express.",  0, 127 },
 };
 
 // Value screen: icon, value right-aligned against the name column, then the
@@ -98,14 +99,16 @@ static void config_map(gfx_t *g, const ui_state_t *st, const ui_anim_t *a, uint3
     }
 }
 
-// Config mode while a value changes: its keys, icon, value and a bar
+// Config mode while a value changes: its keys (none for the expression
+// pedal), icon, value and a bar
 static void config_value(gfx_t *g, const ui_state_t *st) {
     const config_item_t *item = &CONFIG_ITEMS[st->msg];
     int x = kb_x(g);
     uint8_t a, b;
-    config_mode_keys(st->msg, &a, &b);
     widget_keyboard(g, x, 0, KB_H_SMALL, st->keys, 0);
-    widget_arc(g, x, KB_H_SMALL + 1, a, b);
+    if (config_mode_keys(st->msg, &a, &b)) {
+        widget_arc(g, x, KB_H_SMALL + 1, a, b);
+    }
     gfx_blit(g, item->icon, 0, 17);
 
     char text[8];

@@ -12,6 +12,7 @@ add_executable(tests
     ${SRC}/battery.c
     ${SRC}/config_mode.c
     ${SRC}/debounce.c
+    ${SRC}/expression.c
     ${SRC}/gfx.c
     ${SRC}/keyboard.c
     ${SRC}/notes.c

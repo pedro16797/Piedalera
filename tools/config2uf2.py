@@ -57,6 +57,11 @@ SCHEMA = {
     "power.battery":      ("none", "alkaline", "nimh", "li-ion"),
     "power.cells":        (1, 4),
     "power.drop_mv":      (0, 1000),
+    "expression.enabled": bool,
+    "expression.cc":      (0, 119),
+    "expression.invert":  bool,
+    "expression.min":     (0, 4095),
+    "expression.max":     (0, 4095),
 }
 
 

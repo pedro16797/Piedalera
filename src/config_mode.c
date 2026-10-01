@@ -145,6 +145,14 @@ config_result_t config_mode_update(const input_state_t *in, uint32_t now) {
     return CONFIG_STAY;
 }
 
+void config_mode_expression(uint8_t value, uint32_t now) {
+    if (msg == CONFIG_MSG_TITLE || msg == CONFIG_MSG_EXPRESSION) {
+        msg = CONFIG_MSG_EXPRESSION;
+        msg_value = value;
+        touched_at = now;
+    }
+}
+
 bool config_mode_changed(void) {
     return changed;
 }

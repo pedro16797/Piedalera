@@ -5,6 +5,7 @@
 #include "app.h"
 #include "battery.h"
 #include "config_mode.h"
+#include "expression.h"
 #include "gfx.h"
 #include "input.h"
 #include "keyboard.h"
@@ -542,6 +543,96 @@ static void test_battery(void) {
     CHECK(ui_idle_ms(&a, 5000) == 5000);
 }
 
+// Expression pedal
+
+static uint32_t pedal_at;
+
+// Holds the pedal at raw for 50 ms, long past the smoothing; returns the
+// last value sent, -1 if none
+static int pedal(uint16_t raw) {
+    clear_sent();
+    for (int i = 0; i < 50; i++) {
+        app_expression(raw, pedal_at++);
+    }
+    int cc = -1, value = -1;
+    if (sent_count) {
+        sscanf(sent[sent_count - 1], "cc %d %d", &cc, &value);
+        CHECK(cc == 11);
+    }
+    clear_sent();
+    return value;
+}
+
+static void test_expression(void) {
+    settings_defaults(&s);
+    memset(&in, 0, sizeof(in));
+    app_init(&s);
+    pedal_at = 0;
+
+    // Nothing until it has moved far enough to know its travel
+    CHECK(pedal(1000) == -1);
+    CHECK(s.expression_min == 1000 && s.expression_max == 1000);
+    CHECK(pedal(1000 + EXPRESSION_MIN_SPAN / 2) == -1);
+    CHECK(pedal(3000) == 127);
+    CHECK(s.expression_min == 1000 && s.expression_max >= 2990);
+    CHECK(pedal(1000) == 0);
+    int mid = pedal(2000);
+    CHECK(mid >= 62 && mid <= 65);
+
+    // Noise of a few counts sends nothing
+    clear_sent();
+    for (int i = 0; i < 100; i++) {
+        app_expression(i & 1 ? 2010 : 1990, pedal_at++);
+    }
+    EXPECT_NONE();
+
+    // The learnt travel is saved once it stops widening, and only widens
+    CHECK(!app_save_due(pedal_at));
+    CHECK(app_save_due(pedal_at + 5000));
+    CHECK(pedal(1500) != -1);
+    CHECK(pedal(1000) == 0 && !app_save_due(pedal_at + 5000));
+    CHECK(pedal(500) == -1 && s.expression_min <= 510);    // still 0
+
+    // Reversed
+    s.expression_invert = true;
+    CHECK(pedal(3000) == 0);
+    CHECK(pedal(500) == 127);
+    s.expression_invert = false;
+
+    // In config mode, moving it shows its page from the map, which stays
+    // while it moves and is left with G' like any other page
+    const uint32_t both = INPUT_BIT(INPUT_OCT_UP) | INPUT_BIT(INPUT_OCT_DOWN);
+    for (uint32_t t = 0; t <= 1000; t += 10) tick(both, pedal_at + t);
+    pedal_at += 1100;
+    tick(0, pedal_at);
+    ui_state_t ui;
+    app_ui_state(&ui);
+    CHECK(ui.config && ui.msg == CONFIG_MSG_TITLE);
+    pedal(3000);
+    app_ui_state(&ui);
+    CHECK(ui.msg == CONFIG_MSG_EXPRESSION && ui.msg_value == 127);
+    uint8_t down, up;
+    CHECK(!config_mode_keys(CONFIG_MSG_EXPRESSION, &down, &up));
+    for (int i = 0; i < 60; i++) {
+        pedal(i & 1 ? 3000 : 2000);
+        tick(0, pedal_at);
+    }
+    app_ui_state(&ui);
+    CHECK(ui.msg == CONFIG_MSG_EXPRESSION);
+    tick(INPUT_BIT(KEY_BOOTSEL), pedal_at);
+    tick(0, pedal_at + 100);
+    app_ui_state(&ui);
+    CHECK(ui.config && ui.msg == CONFIG_MSG_TITLE);
+
+    // Not over another setting's page
+    tick(INPUT_BIT(4), pedal_at + 200);
+    tick(0, pedal_at + 300);
+    pedal_at += 400;
+    pedal(2000);
+    app_ui_state(&ui);
+    CHECK(ui.msg == CONFIG_MSG_VELOCITY);
+}
+
 static void test_ui(void) {
     static gfx_t g;
     gfx_init(&g, 128, 32);
@@ -693,6 +784,7 @@ int main(void) {
     test_octave();
     test_app();
     test_battery();
+    test_expression();
     test_ui();
     test_splash();
     if (failures) {

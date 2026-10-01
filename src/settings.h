@@ -29,6 +29,11 @@ typedef struct {
     uint8_t power_battery;      // battery_t
     uint8_t power_cells;
     uint16_t power_drop_mv;     // across the supply diode, added to VSYS
+    bool expression_enabled;
+    uint8_t expression_cc;
+    bool expression_invert;
+    uint16_t expression_min;    // travel in ADC counts, learnt as it is played;
+    uint16_t expression_max;    // min above max: not learnt yet
 } settings_t;
 
 #define SETTINGS_TEXT_MAX 4096

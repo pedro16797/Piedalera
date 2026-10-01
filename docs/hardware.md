@@ -19,7 +19,7 @@ socket) in pin 1 of MCU3, the one with the square pad. On every header, pin
 | RST1 | Reset button (optional) | GND | RUN | | |
 | DSP1 | SSD1305 128×32 OLED, I2C `0x3C` | VCC | GND | SCL (GP27) | SDA (GP26) |
 | MIDI1 | 5-pin DIN socket | DIN pin 4 | DIN pin 2 | DIN pin 5 | |
-| EXP1 | Expression pedal (planned) | AGND | GP28 / ADC2 | ADC_VREF | |
+| EXP1 | Expression pedal | AGND | GP28 / ADC2 | ADC_VREF | |
 
 Screen modules often order their pins differently; match the names.
 
@@ -58,4 +58,5 @@ E' to G' really are on pins 01, 03, 05, 07 in that order.
   Pico 2, avoid `keys.pull = down` (RP2350-E9).
 - For the expression pedal, a 10–50 kΩ linear potentiometer across pins 1
   and 3 with its wiper on pin 2 will do; ~1 kΩ in series and ~100 nF to AGND
-  on the wiper filter noise.
+  on the wiper filter noise. Set `expression.enabled = true` once it is
+  connected; a pin left open floats.

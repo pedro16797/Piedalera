@@ -15,6 +15,7 @@ typedef enum {
     CONFIG_MSG_DEBOUNCE,
     CONFIG_MSG_BOOTSEL,
     CONFIG_MSG_BATTERY,
+    CONFIG_MSG_EXPRESSION,
 } config_msg_t;
 
 typedef enum {
@@ -43,6 +44,10 @@ void config_mode_enter(settings_t *s);
 
 config_result_t config_mode_update(const input_state_t *in, uint32_t now_ms);
 
+// The expression pedal moved to value: shown from the map, and its page
+// stays while it moves
+void config_mode_expression(uint8_t value, uint32_t now_ms);
+
 // Whether any setting changed since entering
 bool config_mode_changed(void);
 
@@ -55,5 +60,5 @@ uint32_t config_mode_hold_ms(uint32_t now_ms);
 uint32_t config_mode_idle_ms(uint32_t now_ms);
 
 // Keys that turn a setting down and up (the same key twice for bootsel);
-// false for CONFIG_MSG_TITLE
+// false for CONFIG_MSG_TITLE and CONFIG_MSG_EXPRESSION
 bool config_mode_keys(config_msg_t msg, uint8_t *down, uint8_t *up);
