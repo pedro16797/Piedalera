@@ -25,12 +25,12 @@ the drawing modules also run in the display preview (`tools/preview`).
 | Module          | Core | Host | Does |
 |-----------------|------|------|------|
 | `board.h`       | –    |      | Pin map |
-| `input.c`       | 0    |      | GPIO setup, one read of all inputs, expression pedal ADC |
+| `input.c`       | 0    |      | GPIO setup, one read of all inputs, expression pedal ADC and probe |
 | `debounce.c`    | 0    | ✓    | Per-input debounce |
 | `midi.c`        | 0    |      | UART at 31250 baud, ring buffer drained by the TX interrupt |
 | `power.c`       | 0    |      | 48 MHz system clock, dormant sleep, VSYS reading |
 | `battery.c`     | –    | ✓    | Battery types and discharge curves |
-| `expression.c`  | 0    | ✓    | Expression pedal smoothing, learnt travel, hysteresis |
+| `expression.c`  | 0    | ✓    | Expression pedal smoothing, learnt travel, hysteresis, plug detection |
 | `notes.c`       | 0    | ✓    | Note on/off with a count per note, power-up panic |
 | `keyboard.c`    | 0    | ✓    | Normal and chord mode, chord table |
 | `octave.c`      | 0    | ✓    | Octave buttons, auto-repeat, both-buttons gesture |
@@ -106,15 +106,21 @@ the drawing modules also run in the display preview (`tools/preview`).
   0–127 within the learnt travel, with a 1/32 dead zone at both ends and
   ±¾ step of hysteresis; each new value is sent as a CC and counts as input
   for deep sleep. Nothing is sent until the travel spans 256 counts.
+- **Plug detection:** every 100 ms, after the reading, core 0 reads GP28
+  with the pad's pull-up and then its pull-down (~50 kΩ, 20 µs each). A
+  pedal's potentiometer holds the pin within a fifth of the range; an empty
+  jack swings across it. Three probes in a row over half the range mean
+  unplugged: 127 is sent and readings are ignored, so they neither send
+  nor keep the board awake. Three under it, and the pedal starts afresh.
 - **Learning the travel** only happens in config mode, on the map or the
-  pedal's page, never while playing, so a floating unplugged input can't
-  widen it. A fresh travel (min above max) starts at the first reading;
+  pedal's page, never while playing. A fresh travel (min above max) starts at the first reading;
   after that it widens whenever the reading goes 8 counts past it, and is
   saved 5 s after it stops changing. Widening it or a new value opens the
   page from the map and keeps it open; the page shows the position within
-  the travel so far, then the value once it is wide enough. Holding E and
-  F for 1 s toggles the pedal, undoing any velocity change the first key
-  made; turning it off sends 127 and resets the travel to min 4095, max 0.
+  the travel so far, smoothed over about 32 readings, then the value once
+  it is wide enough. Holding E and F for 1 s toggles the pedal, undoing
+  any velocity change the first key made; turning it off sends 127 and
+  resets the travel to min 4095, max 0.
 - **Idle:** with no snapshot change for `display.dim_s` the contrast drops
   to a quarter, and after `display.off_s` the panel sleeps (0xAE) until the
   next change.

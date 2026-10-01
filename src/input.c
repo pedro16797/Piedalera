@@ -3,6 +3,7 @@
 #include "input.h"
 
 #define EXPRESSION_SAMPLES 8
+#define PROBE_SETTLE_US    20   // an empty pin settles in a few us
 
 static uint32_t invert;
 
@@ -44,4 +45,16 @@ uint16_t input_expression(void) {
         sum += adc_read();
     }
     return sum / EXPRESSION_SAMPLES;
+}
+
+// The pulls act on the pad, so they work with its digital input off, which
+// RP2350-E9 (a pull-down latching) needs on
+void input_expression_probe(uint16_t *up, uint16_t *down) {
+    gpio_pull_up(PIN_EXPRESSION);
+    busy_wait_us_32(PROBE_SETTLE_US);
+    *up = input_expression();
+    gpio_pull_down(PIN_EXPRESSION);
+    busy_wait_us_32(PROBE_SETTLE_US);
+    *down = input_expression();
+    gpio_disable_pulls(PIN_EXPRESSION);
 }

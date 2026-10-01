@@ -66,8 +66,9 @@ every mode once turned on.
 - **Off:** hold E and F again. It sends 127, so the synth isn't left quiet,
   and forgets the travel: turning it on again learns it afresh, e.g. for
   another pedal.
-- The travel is only learnt in config mode, on the map or the pedal's page,
-  so unplugging the pedal while playing can't spoil it. If the pedal
-  doesn't reach 0 or 127, open config mode and push it to its ends again:
-  the travel only ever widens.
+- **Unplugged:** it sends 127 and is ignored until plugged back in; either
+  is noticed within half a second.
+- The travel is only learnt in config mode, on the map or the pedal's page.
+  If the pedal doesn't reach 0 or 127, push it to its ends there again: the
+  travel only ever widens.
 - In config mode, moving the pedal shows its page and value.

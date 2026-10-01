@@ -571,6 +571,13 @@ static int pedal(uint16_t raw) {
     return value;
 }
 
+// A few probes of the pin, with a pedal holding it or an empty jack
+static void probe(bool plugged) {
+    for (int i = 0; i < 3; i++) {
+        app_expression_probe(plugged ? 2100 : 4095, plugged ? 1900 : 0);
+    }
+}
+
 // Into config mode with both octave buttons
 static void pedal_config(void) {
     const uint32_t both = INPUT_BIT(INPUT_OCT_UP) | INPUT_BIT(INPUT_OCT_DOWN);
@@ -597,6 +604,17 @@ static void test_expression(void) {
     // Off by default
     CHECK(pedal(1000) == -1);
     s.expression_enabled = true;
+
+    // Until a probe finds a pedal, readings are ignored, even in config
+    // mode where they would be learnt; two probes aren't enough
+    pedal_config();
+    CHECK(pedal(3000) == -1 && s.expression_min > s.expression_max);
+    app_expression_probe(2100, 1900);
+    app_expression_probe(2100, 1900);
+    CHECK(!expression_plugged());
+    app_expression_probe(2100, 1900);
+    CHECK(expression_plugged());
+    pedal_leave();
 
     // Never learnt, it sends nothing and learns nothing while playing
     CHECK(pedal(3000) == -1 && pedal(1000) == -1);
@@ -711,6 +729,7 @@ static void test_expression(void) {
     CHECK(s.expression_enabled);
     pedal_at = t0 + 4300;
     tick(0, pedal_at);
+    probe(true);
     CHECK(pedal(0) == -1 && s.expression_min == 0 && s.expression_max == 0);
     app_ui_state(&ui);
     CHECK(ui.msg == CONFIG_MSG_EXPRESSION && ui.expression && !ui.expression_ready);
@@ -718,6 +737,17 @@ static void test_expression(void) {
     CHECK(pedal(1000) == 127 && pedal(0) == 0);
     pedal_leave();
     CHECK(app_save_due(pedal_at));
+
+    // Pulled out: 127 once, then its noise is ignored and doesn't keep the
+    // board awake; plugged back in, its value is sent again
+    clear_sent();
+    probe(false);
+    EXPECT("cc 11 127");
+    uint32_t idle_from = pedal_at;
+    CHECK(pedal(0) == -1 && pedal(1000) == -1);
+    CHECK(app_idle_ms(pedal_at) >= pedal_at - idle_from);
+    probe(true);
+    CHECK(pedal(500) == 64);
 }
 
 static void test_ui(void) {

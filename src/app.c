@@ -183,13 +183,28 @@ void app_battery(uint32_t vsys_mv, bool usb) {
     battery_mv = battery_mv ? battery_mv + ((int32_t)mv - (int32_t)battery_mv) / 8 : mv;
 }
 
-void app_expression(uint16_t raw, uint32_t now) {
+// Readings coming in since it was enabled
+static bool expression_start(void) {
     if (!settings->expression_enabled) {
-        return;
+        return false;
     }
     if (!expression_on) {
         expression_on = true;
         expression_init();
+    }
+    return true;
+}
+
+void app_expression_probe(uint16_t up, uint16_t down) {
+    // Pulled out: back to full expression, so the synth isn't left quiet
+    if (expression_start() && expression_probe(up, down) && !expression_plugged()) {
+        midi_cc(settings->midi_channel - 1, settings->expression_cc, 127);
+    }
+}
+
+void app_expression(uint16_t raw, uint32_t now) {
+    if (!expression_start() || !expression_plugged()) {
+        return;
     }
     // The travel is only learnt in config mode, on the map or the pedal's
     // page, so a pedal unplugged while playing can't spoil it

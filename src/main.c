@@ -3,6 +3,7 @@
 #include "app.h"
 #include "board.h"
 #include "display.h"
+#include "expression.h"
 #include "hardware/sync.h"
 #include "hardware/watchdog.h"
 #include "input.h"
@@ -273,6 +274,7 @@ int main(void) {
     debounce_init(&debounce, input_read());
     absolute_time_t next = get_absolute_time();
     uint32_t battery_at = 0;
+    uint32_t probe_at = 0;
     uint32_t retry_at = 0;      // next time to check whether to sleep
 
     // Resets the Pico if either core hangs; it stands still in deep sleep,
@@ -289,6 +291,13 @@ int main(void) {
         app_update(&in, now);
         if (settings.expression_enabled) {
             app_expression(input_expression(), now);
+            // After the reading, which the pulls would move
+            if (now - probe_at >= EXPRESSION_PROBE_MS) {
+                probe_at = now;
+                uint16_t up, down;
+                input_expression_probe(&up, &down);
+                app_expression_probe(up, down);
+            }
         }
         // After power.sleep_s without input, sleep until the next press. The
         // timer stood still meanwhile, so give the waking press a moment to

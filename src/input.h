@@ -38,5 +38,8 @@ uint32_t input_read(void);
 // Expression pedal position, 12 bits; only at full speed, as power_vsys_mv
 uint16_t input_expression(void);
 
+// Its readings with the pin's pull-up, then its pull-down; no pull after
+void input_expression_probe(uint16_t *up, uint16_t *down);
+
 // Arm (or disarm) every input to wake the chip from dormant when pressed
 void input_wake(bool on);
