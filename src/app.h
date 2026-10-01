@@ -14,9 +14,18 @@ void app_update(const input_state_t *in, uint32_t now_ms);
 
 void app_ui_state(ui_state_t *out);
 
+// A new VSYS reading; the battery voltage and charge follow it smoothly
+void app_battery(uint32_t vsys_mv);
+
+// Time since an input was last held or released
+uint32_t app_idle_ms(uint32_t now_ms);
+
 // True once config mode asked to reboot into the USB bootloader; the
 // settings should be saved first
 bool app_bootsel(void);
+
+// True, once, if changed settings wait to be written, e.g. before sleeping
+bool app_save_pending(void);
 
 // True when changed settings should be written now: right after config
 // mode, or once the octave has stayed put for a while

@@ -34,6 +34,13 @@ void midi_init(void) {
     irq_set_enabled(UART_IRQ_NUM(MIDI_UART), true);
 }
 
+void midi_flush(void) {
+    while (tail != head) {
+        tight_loop_contents();
+    }
+    uart_tx_wait_blocking(MIDI_UART);
+}
+
 static void put(uint8_t byte) {
     // Only waits when over 80 ms of MIDI is already queued
     while ((uint8_t)(head + 1) == tail) {

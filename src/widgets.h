@@ -5,8 +5,8 @@
 #include "gfx.h"
 
 // Keyboard strip of the 20 pedals: 12 white keys WIDGET_KEY_STEP wide, black
-// keys as notches over the gaps. Pressed keys are drawn inverted, marked
-// keys (e.g. chord tones) with a dotted fill.
+// keys as notches over the gaps. Keys are outlines, filled while pressed;
+// marked keys (e.g. chord tones) are dotted.
 #define WIDGET_KEY_STEP 10
 #define WIDGET_KEYS_WIDTH (12 * WIDGET_KEY_STEP)
 
@@ -24,6 +24,14 @@ void widget_arc(gfx_t *g, int x, int y, int key_a, int key_b);
 // + - and space only
 void widget_tiny_text(gfx_t *g, int x, int y, const char *str, bool on);
 int widget_tiny_width(const char *str);
+
+// Vertical battery, WIDGET_BATTERY_W x WIDGET_BATTERY_H, filled solid in
+// proportion to level (0-255) and emptying from the top a row at a time;
+// warn draws an exclamation mark inside
+#define WIDGET_BATTERY_W    5
+#define WIDGET_BATTERY_H    10
+#define WIDGET_BATTERY_ROWS 7
+void widget_battery(gfx_t *g, int x, int y, uint8_t level, bool warn);
 
 // Screen border inverted clockwise from the top middle, progress/255 of the
 // way round, while a key is held towards an action

@@ -22,6 +22,8 @@ saved to the same place.
 | `display.col_offset` | 4       | 0–4                | First visible RAM column; width + offset ≤ 132 |
 | `display.brightness` | 15      | 0–255              | Display contrast |
 | `display.splash`     | true    | true / false       | Play the start-up animation |
+| `display.dim_s`      | 60      | 0–3600             | Seconds without input before the screen dims; 0 never |
+| `display.off_s`      | 300     | 0–3600             | Seconds without input before the screen turns off; 0 never |
 | `midi.channel`       | 1       | 1–16               | MIDI channel |
 | `midi.velocity`      | 95      | 1–127              | Note velocity |
 | `midi.transpose`     | 0       | −12–12             | Semitones added to every note |
@@ -34,6 +36,10 @@ saved to the same place.
 | `keys.active_low`    | true    | true / false       | Pressed reads low |
 | `keys.pull`          | none    | up / down / none   | Internal pull resistor on the inputs |
 | `keys.debounce_ms`   | 5       | 0–50               | Time an input must be stable to count |
+| `power.sleep_s`      | 600     | 0–7200             | Seconds without input before deep sleep (screen off, Pico stopped until a press); 0 never |
+| `power.battery`      | li-ion  | none / alkaline / nimh / li-ion | Battery type, for the charge shown in config mode (li-ion also covers LiPo); `none` on a power supply |
+| `power.cells`        | 1       | 1–4                | Cells in series (e.g. 1 for an 18650, 3 for 3×AA) |
+| `power.drop_mv`      | 300     | 0–1000             | Voltage lost in the board's supply diode, added back to the reading; adjust if the voltage shown differs from a multimeter |
 
 Octave `n` puts C on MIDI note `12 * (n + 1) + transpose`. Missing keys take
 the default.

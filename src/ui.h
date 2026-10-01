@@ -7,7 +7,7 @@
 
 // Snapshot of what the display shows, published by core 0
 typedef struct {
-    uint32_t keys;      // pressed keys
+    uint32_t keys;      // pressed inputs: keys 0-19, then the octave buttons
     uint32_t marks;     // keys to mark, see keyboard_marks()
     uint8_t octave;
     bool chord_mode;
@@ -19,6 +19,36 @@ typedef struct {
     int16_t msg_value;
     uint8_t brightness;
     uint8_t progress;   // of a key hold towards an action, 0-255
+    bool battery;           // running on batteries: show the gauge
+    uint8_t battery_level;  // 0-255
+    uint8_t battery_type;   // battery_t
+    uint8_t battery_cells;
+    uint16_t battery_mv;
 } ui_state_t;
 
-void ui_render(gfx_t *g, const ui_state_t *st);
+// Transitions played over the snapshots, and when an input last changed
+typedef struct {
+    ui_state_t last;
+    uint32_t changed_at;    // any change of the snapshot
+    uint32_t mode_at;       // chord mode toggled: banner
+    uint32_t octave_at;     // octave changed: the number slides
+    uint8_t octave_from;
+    bool started;
+} ui_anim_t;
+
+#define UI_BANNER_MS    800
+#define UI_SLIDE_MS     150
+#define UI_BLINK_MS     500
+#define UI_BATTERY_LOW  24      // level below which the gauge warns
+
+// Notes what changed since the previous snapshot
+void ui_anim_update(ui_anim_t *a, const ui_state_t *st, uint32_t now_ms);
+
+// True while a transition needs a new frame every period
+bool ui_anim_running(const ui_anim_t *a, uint32_t now_ms);
+
+// Time since the snapshot last changed, i.e. since the last input
+uint32_t ui_idle_ms(const ui_anim_t *a, uint32_t now_ms);
+
+// a may be NULL for no transitions
+void ui_render(gfx_t *g, const ui_state_t *st, const ui_anim_t *a, uint32_t now_ms);

@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "battery.h"
 #include "config_mode.h"
 #include "gfx.h"
 #include "midi.h"
@@ -65,7 +66,7 @@ static void chord_hold(ui_state_t *st, uint32_t t) {
     st->hold = true;
     st->root = 0;
     st->keys = KEY(0);
-    st->marks = KEY(0) | KEY(4) | KEY(7) | KEY(11) | KEY(12) | KEY(19);
+    st->marks = KEY(0) | KEY(4) | KEY(7) | KEY(11) | KEY(12);
 }
 
 static void config_title(ui_state_t *st, uint32_t t) {
@@ -73,6 +74,24 @@ static void config_title(ui_state_t *st, uint32_t t) {
     base(st);
     st->config = true;
     st->msg = CONFIG_MSG_TITLE;
+}
+
+// Batteries draining a row at a time, then the blinking warning
+static void config_battery(ui_state_t *st, uint32_t t) {
+    config_title(st, t);
+    st->battery = true;
+    st->battery_level = t < 2400 ? 255 - t * 255 / 2400 : 10;
+}
+
+// F' held: the battery page, one Li-ion cell at about half charge
+static void config_battery_page(ui_state_t *st, uint32_t t) {
+    config_battery(st, t);
+    st->keys = KEY(17);
+    st->msg = CONFIG_MSG_BATTERY;
+    st->battery_type = BATTERY_LIION;
+    st->battery_cells = 1;
+    st->battery_mv = 3820;
+    st->battery_level = battery_level(BATTERY_LIION, 1, 3820);
 }
 
 static void config_brightness(ui_state_t *st, uint32_t t) {
@@ -103,6 +122,29 @@ static void config_debounce(ui_state_t *st, uint32_t t) {
     st->msg_value = 5;
 }
 
+// Brightness left untouched: the border fills in the last second, then the map
+static void config_idle(ui_state_t *st, uint32_t t) {
+    config_title(st, t);
+    if (t < CONFIG_IDLE_MS) {
+        st->msg = CONFIG_MSG_BRIGHTNESS;
+        st->msg_value = 7;
+        uint32_t border = CONFIG_IDLE_MS - CONFIG_IDLE_BORDER_MS;
+        st->progress = t > border ? (t - border) * 255 / CONFIG_IDLE_BORDER_MS : 0;
+    }
+}
+
+// Both octave buttons toggle chord mode on, then off again
+static void mode_banner(ui_state_t *st, uint32_t t) {
+    base(st);
+    st->chord_mode = t >= 200 && t < 1400;
+}
+
+// Octave up, then down
+static void octave_shift(ui_state_t *st, uint32_t t) {
+    base(st);
+    st->octave = t >= 100 && t < 500 ? 4 : 3;
+}
+
 // Both octave buttons held towards config mode, 60 % of the way
 static void normal_hold(ui_state_t *st, uint32_t t) {
     (void)t;
@@ -130,13 +172,18 @@ static void config_bootsel(ui_state_t *st, uint32_t t) {
 static const scene_t SCENES[] = {
     { "normal",            2000, 10, normal, NULL },
     { "normal-hold",       0,    0,  normal_hold, NULL },
+    { "mode-banner",       2400, 10, mode_banner, NULL },
+    { "octave-shift",      800,  40, octave_shift, NULL },
     { "chord",             0,    0,  chord, NULL },
     { "chord-hold",        0,    0,  chord_hold, NULL },
     { "config",            0,    0,  config_title, NULL },
+    { "config-battery",    4000, 5,  config_battery, NULL },
+    { "config-battery-page", 0,  0,  config_battery_page, NULL },
     { "config-brightness", 0,    0,  config_brightness, NULL },
     { "config-velocity",   0,    0,  config_velocity, NULL },
     { "config-transpose",  0,    0,  config_transpose, NULL },
     { "config-debounce",   0,    0,  config_debounce, NULL },
+    { "config-idle",       3500, 10, config_idle, NULL },
     { "config-hold",       1200, 30, config_hold, NULL },
     { "config-bootsel",    0,    0,  config_bootsel, NULL },
     { "splash", SPLASH_FRAMES * SPLASH_FRAME_MS, 1000 / SPLASH_FRAME_MS, NULL, splash_draw },
@@ -334,7 +381,7 @@ static void write_diagrams(const char *dir) {
     st.root = -1;
     st.config = true;
     st.msg = CONFIG_MSG_TITLE;
-    ui_render(&g, &st);
+    ui_render(&g, &st, NULL, 0);
     snprintf(path, sizeof(path), "%s/keys-config.png", dir);
     frames_png(path, buf, 1, g.width, g.height);
     printf("%s: pedal diagrams\n", dir);
@@ -395,6 +442,8 @@ int main(int argc, char **argv) {
         uint32_t frames = sc->duration_ms ? sc->duration_ms * sc->fps / 1000 : 1;
         fprintf(html, "  { name: \"%s\", fps: %u, frames: [\n", sc->name, sc->fps);
         uint8_t **bufs = malloc(frames * sizeof(*bufs));
+        ui_anim_t anim;
+        memset(&anim, 0, sizeof(anim));
         for (uint32_t f = 0; f < frames; f++) {
             uint32_t t = sc->fps ? f * 1000 / sc->fps : 0;
             if (sc->draw) {
@@ -402,7 +451,8 @@ int main(int argc, char **argv) {
             } else {
                 ui_state_t st;
                 sc->state(&st, t);
-                ui_render(&g, &st);
+                ui_anim_update(&anim, &st, t);
+                ui_render(&g, &st, &anim, t);
             }
             fputs("    \"", html);
             for (size_t i = 0; i < bytes; i++) fprintf(html, "%02x", g.buf[i]);

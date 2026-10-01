@@ -1,3 +1,4 @@
+#include "battery.h"
 #include "config_mode.h"
 #include "midi.h"
 
@@ -32,6 +33,8 @@ static uint32_t next_step[FUNCTION_COUNT];
 static uint32_t repeating;  // function keys pressed since entering
 static uint8_t exit_key;
 static uint32_t exit_down_at;
+static bool exit_to_map;    // G' pressed on a setting's screen
+static uint32_t touched_at; // last time a key was held
 static bool changed;
 static config_msg_t msg;
 static int msg_value;
@@ -90,6 +93,9 @@ static void apply(const function_t *f) {
 config_result_t config_mode_update(const input_state_t *in, uint32_t now) {
     uint32_t down = in->down & KEYS_MASK;
     repeating &= in->pressed;
+    if (in->pressed & KEYS_MASK) {
+        touched_at = now;
+    }
 
     for (unsigned i = 0; i < FUNCTION_COUNT; i++) {
         const function_t *f = &FUNCTIONS[i];
@@ -105,15 +111,29 @@ config_result_t config_mode_update(const input_state_t *in, uint32_t now) {
         }
     }
 
+    if ((down & INPUT_BIT(KEY_BATTERY)) && settings->power_battery != BATTERY_NONE) {
+        down &= ~INPUT_BIT(KEY_BATTERY);
+        msg = CONFIG_MSG_BATTERY;
+    }
+
     // Any other key: leave when it is released
     if (down && exit_key == NO_KEY) {
         exit_key = __builtin_ctz(down);
         exit_down_at = now;
+        exit_to_map = exit_key == KEY_BOOTSEL && msg != CONFIG_MSG_TITLE;
     }
     if (exit_key == NO_KEY) {
+        if (config_mode_idle_ms(now) >= CONFIG_IDLE_MS) {
+            msg = CONFIG_MSG_TITLE;
+        }
         return CONFIG_STAY;
     }
     if (in->up & INPUT_BIT(exit_key)) {
+        exit_key = NO_KEY;
+        if (exit_to_map) {
+            msg = CONFIG_MSG_TITLE;
+            return CONFIG_STAY;
+        }
         return CONFIG_EXIT;
     }
     if (exit_key == KEY_BOOTSEL && now - exit_down_at >= BOOTSEL_SHOW_MS) {
@@ -130,8 +150,8 @@ bool config_mode_changed(void) {
 }
 
 bool config_mode_keys(config_msg_t msg, uint8_t *down, uint8_t *up) {
-    if (msg == CONFIG_MSG_BOOTSEL) {
-        *down = *up = KEY_BOOTSEL;
+    if (msg == CONFIG_MSG_BOOTSEL || msg == CONFIG_MSG_BATTERY) {
+        *down = *up = msg == CONFIG_MSG_BOOTSEL ? KEY_BOOTSEL : KEY_BATTERY;
         return true;
     }
     bool found = false;
@@ -143,6 +163,10 @@ bool config_mode_keys(config_msg_t msg, uint8_t *down, uint8_t *up) {
         }
     }
     return found;
+}
+
+uint32_t config_mode_idle_ms(uint32_t now) {
+    return msg == CONFIG_MSG_TITLE ? 0 : now - touched_at;
 }
 
 uint32_t config_mode_hold_ms(uint32_t now) {

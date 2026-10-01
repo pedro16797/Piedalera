@@ -1,6 +1,7 @@
 #include <string.h>
 
 #include "app.h"
+#include "battery.h"
 #include "config_mode.h"
 #include "keyboard.h"
 #include "notes.h"
@@ -17,6 +18,8 @@ static bool save_pending;
 static uint32_t save_at;
 static uint32_t pressed;    // last debounced inputs, for the screen
 static uint8_t progress;    // of the current key hold, for the screen
+static uint32_t input_at;   // last time an input was held or released
+static uint32_t battery_mv; // filtered, 0 until the first reading
 
 static void request_save(uint32_t now, uint32_t delay) {
     save_pending = true;
@@ -29,6 +32,8 @@ void app_init(settings_t *s) {
     bootsel = false;
     pressed = 0;
     progress = 0;
+    input_at = 0;
+    battery_mv = 0;
     save_pending = false;
     notes_init(s->midi_channel - 1);
     notes_panic();
@@ -36,12 +41,13 @@ void app_init(settings_t *s) {
     octave_init(s);
 }
 
+// Entering config mode also silences the synth, for any note left stuck
 static void enter_config(bool undo_toggle) {
     if (undo_toggle) {
         keyboard_set_chord_mode(!keyboard_chord_mode());
-    } else {
-        keyboard_reset();
     }
+    keyboard_reset();
+    notes_panic();
     config = true;
     bootsel_saved = false;
     config_mode_enter(settings);
@@ -53,6 +59,9 @@ static uint8_t hold_progress(uint32_t held, uint32_t total) {
 
 void app_update(const input_state_t *in, uint32_t now) {
     pressed = in->pressed;
+    if (in->pressed || in->up) {
+        input_at = now;
+    }
     if (bootsel) {
         return;
     }
@@ -61,6 +70,12 @@ void app_update(const input_state_t *in, uint32_t now) {
         config_result_t result = config_mode_update(in, now);
         if (result != CONFIG_EXIT) {
             progress = hold_progress(config_mode_hold_ms(now), BOOTSEL_HOLD_MS);
+            // Last stretch before a setting's screen goes back to the map
+            uint32_t idle = config_mode_idle_ms(now);
+            if (idle > CONFIG_IDLE_MS - CONFIG_IDLE_BORDER_MS) {
+                progress = hold_progress(idle - (CONFIG_IDLE_MS - CONFIG_IDLE_BORDER_MS),
+                                         CONFIG_IDLE_BORDER_MS);
+            }
         }
         // Save as soon as USB FLASH shows, so the reboot needn't wait
         int value;
@@ -116,7 +131,7 @@ void app_update(const input_state_t *in, uint32_t now) {
 void app_ui_state(ui_state_t *out) {
     // Zeroed padding too, so snapshots can be compared with memcmp
     memset(out, 0, sizeof(*out));
-    out->keys = pressed & KEYS_MASK;
+    out->keys = pressed & (KEYS_MASK | INPUT_BIT(INPUT_OCT_UP) | INPUT_BIT(INPUT_OCT_DOWN));
     out->marks = keyboard_marks();
     out->root = keyboard_root();
     out->octave = settings->octave_current;
@@ -126,6 +141,14 @@ void app_ui_state(ui_state_t *out) {
     out->config = config;
     out->brightness = settings->display_brightness;
     out->progress = progress;
+    if (settings->power_battery != BATTERY_NONE && battery_mv) {
+        out->battery = true;
+        out->battery_type = settings->power_battery;
+        out->battery_cells = settings->power_cells;
+        out->battery_mv = (battery_mv + 5) / 10 * 10;     // calmer on screen
+        out->battery_level = battery_level(settings->power_battery, settings->power_cells,
+                                           out->battery_mv);
+    }
     if (config) {
         int value;
         out->msg = config_mode_msg(&value);
@@ -133,8 +156,24 @@ void app_ui_state(ui_state_t *out) {
     }
 }
 
+void app_battery(uint32_t vsys_mv) {
+    uint32_t mv = vsys_mv + settings->power_drop_mv;
+    // Average over about 8 readings
+    battery_mv = battery_mv ? battery_mv + ((int32_t)mv - (int32_t)battery_mv) / 8 : mv;
+}
+
+uint32_t app_idle_ms(uint32_t now) {
+    return now - input_at;
+}
+
 bool app_bootsel(void) {
     return bootsel;
+}
+
+bool app_save_pending(void) {
+    bool pending = save_pending;
+    save_pending = false;
+    return pending;
 }
 
 bool app_save_due(uint32_t now) {

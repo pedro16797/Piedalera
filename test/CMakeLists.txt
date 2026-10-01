@@ -9,6 +9,7 @@ set(SRC ${CMAKE_CURRENT_SOURCE_DIR}/../src)
 add_executable(tests
     tests.c
     ${SRC}/app.c
+    ${SRC}/battery.c
     ${SRC}/config_mode.c
     ${SRC}/debounce.c
     ${SRC}/gfx.c

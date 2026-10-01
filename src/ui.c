@@ -1,3 +1,6 @@
+#include <string.h>
+
+#include "battery.h"
 #include "config_mode.h"
 #include "icons_sprites.h"
 #include "keyboard.h"
@@ -20,7 +23,7 @@ typedef struct {
 } config_item_t;
 
 static const config_item_t CONFIG_ITEMS[] = {
-    [CONFIG_MSG_BRIGHTNESS] = { &SPRITE_BULB,      "Shine",      0,  16 },
+    [CONFIG_MSG_BRIGHTNESS] = { &SPRITE_BULB,      "Contrast",   0,  16 },
     [CONFIG_MSG_VELOCITY]   = { &SPRITE_VELOCITY,  "Velocity",   1, 127 },
     [CONFIG_MSG_BANK]       = { &SPRITE_BANK,      "Bank",       0, 127 },
     [CONFIG_MSG_TRANSPOSE]  = { &SPRITE_TRANSPOSE, "Transp.",  -12,  12 },
@@ -70,15 +73,28 @@ static void icon_under(gfx_t *g, const sprite_t *icon, int a, int b, int y) {
     gfx_blit(g, icon, (left + right - icon->width) / 2, y);
 }
 
-// Config mode, nothing adjusted yet: every function key with its icon
-static void config_map(gfx_t *g, const ui_state_t *st) {
+static bool battery_warns(const ui_state_t *st) {
+    return st->battery && st->battery_level < UI_BATTERY_LOW;
+}
+
+// Config mode, nothing adjusted yet: every function key with its icon, and
+// with batteries their charge under F'. Nearly empty, it blinks an
+// exclamation mark.
+static void config_map(gfx_t *g, const ui_state_t *st, const ui_anim_t *a, uint32_t now) {
     int x = kb_x(g);
     widget_keyboard(g, x, 0, KB_H, st->keys, 0);
     for (int msg = CONFIG_MSG_BRIGHTNESS; msg <= CONFIG_MSG_BOOTSEL; msg++) {
-        uint8_t a, b;
-        config_mode_keys(msg, &a, &b);
-        widget_arc(g, x, KB_H + 1, a, b);
-        icon_under(g, CONFIG_ITEMS[msg].icon, a, b, KB_H + 5);
+        uint8_t k0, k1;
+        config_mode_keys(msg, &k0, &k1);
+        widget_arc(g, x, KB_H + 1, k0, k1);
+        icon_under(g, CONFIG_ITEMS[msg].icon, k0, k1, KB_H + 5);
+    }
+    if (st->battery) {
+        int left = widget_key_x(x, KEY_BATTERY);
+        bool blink_on = !a || (now / UI_BLINK_MS) % 2 == 0;
+        widget_arc(g, x, KB_H + 1, KEY_BATTERY, KEY_BATTERY);
+        widget_battery(g, left + (widget_key_width(KEY_BATTERY) - WIDGET_BATTERY_W) / 2,
+                       KB_H + 5, st->battery_level, battery_warns(st) && blink_on);
     }
 }
 
@@ -103,6 +119,30 @@ static void config_value(gfx_t *g, const ui_state_t *st) {
                item->lo, item->hi);
 }
 
+// Battery page (F'): the voltage, the battery type and a bar for the charge
+static void config_battery(gfx_t *g, const ui_state_t *st) {
+    int x = kb_x(g);
+    widget_keyboard(g, x, 0, KB_H_SMALL, st->keys, 0);
+    widget_arc(g, x, KB_H_SMALL + 1, KEY_BATTERY, KEY_BATTERY);
+
+    // "4.12V", proportionally spaced to fit left of the column
+    char text[12];
+    char *p = put_str(put_int(text, st->battery_mv / 1000, false), ".");
+    p = put_int(p, st->battery_mv / 100 % 10, false);
+    p = put_str(put_int(p, st->battery_mv / 10 % 10, false), "V");
+    int w = gfx_text_ink(NULL, 0, 0, text, 2, 2);
+    gfx_text_ink(g, COLUMN_X - 2 - w, 14, text, 2, 2);
+
+    // "3x NiMH", or just "Li-ion" for one cell
+    p = text;
+    if (st->battery_cells > 1) {
+        p = put_str(put_int(p, st->battery_cells, false), "x ");
+    }
+    put_str(p, battery_label(st->battery_type));
+    gfx_text(g, COLUMN_X, 13, text);
+    widget_bar(g, COLUMN_X, 23, g->width - COLUMN_X, 8, st->battery_level, 0, 255);
+}
+
 // About to restart in USB flash mode: "USB FLASH" at double size under the
 // keyboard, letters 3 px apart instead of 4 so it fits on one line
 #define FLASH_ADVANCE   15      // 12 px of ink and the gap
@@ -117,14 +157,79 @@ static void config_bootsel(gfx_t *g, const ui_state_t *st) {
     gfx_text_spaced(g, x + 3 * FLASH_ADVANCE + 3, y, "FLASH", 2, FLASH_ADVANCE);
 }
 
-static void screen(gfx_t *g, const ui_state_t *st) {
+void ui_anim_update(ui_anim_t *a, const ui_state_t *st, uint32_t now) {
+    if (!a->started) {
+        a->started = true;
+        a->last = *st;
+        a->changed_at = now;
+        a->mode_at = now - UI_BANNER_MS;
+        a->octave_at = now - UI_SLIDE_MS;
+        return;
+    }
+    // Battery readings change on their own; only the rest means input
+    ui_state_t cmp = *st;
+    cmp.battery_level = a->last.battery_level;
+    cmp.battery_mv = a->last.battery_mv;
+    if (memcmp(&cmp, &a->last, sizeof(cmp)) != 0) {
+        a->changed_at = now;
+    }
+    // Only while playing; entering config mode toggles and restores it
+    if (!st->config && !a->last.config) {
+        if (st->chord_mode != a->last.chord_mode) {
+            a->mode_at = now;
+        }
+        if (st->octave != a->last.octave) {
+            a->octave_from = a->last.octave;
+            a->octave_at = now;
+        }
+    }
+    a->last = *st;
+}
+
+static bool active(uint32_t at, uint32_t now, uint32_t len) {
+    return now - at < len;
+}
+
+bool ui_anim_running(const ui_anim_t *a, uint32_t now) {
+    const ui_state_t *st = &a->last;
+    bool blinking = st->config && st->msg == CONFIG_MSG_TITLE && battery_warns(st);
+    return blinking || active(a->mode_at, now, UI_BANNER_MS) ||
+           active(a->octave_at, now, UI_SLIDE_MS);
+}
+
+uint32_t ui_idle_ms(const ui_anim_t *a, uint32_t now) {
+    return now - a->changed_at;
+}
+
+// "Octave: n"; a changed number slides in from below when going up, from
+// above when going down, pushing the old one out
+static void octave_line(gfx_t *g, const ui_state_t *st, const ui_anim_t *a, uint32_t now) {
+    char num[4];
+    int y = TEXT_Y + 9, x = 8 * 8;
+    gfx_text(g, 0, y, "Octave: ");
+    put_int(num, st->octave, false);
+    if (!a || !active(a->octave_at, now, UI_SLIDE_MS)) {
+        gfx_text(g, x, y, num);
+        return;
+    }
+    char old[4];
+    put_int(old, a->octave_from, false);
+    int dir = st->octave > a->octave_from ? 1 : -1;
+    int d = (now - a->octave_at) * 9 / UI_SLIDE_MS;
+    gfx_text_clipped(g, x, y - dir * d, old, y, y + 9);
+    gfx_text_clipped(g, x, y + dir * (9 - d), num, y, y + 9);
+}
+
+static void screen(gfx_t *g, const ui_state_t *st, const ui_anim_t *a, uint32_t now) {
     char line[24];
 
     if (st->config) {
         if (st->msg == CONFIG_MSG_TITLE) {
-            config_map(g, st);
+            config_map(g, st, a, now);
         } else if (st->msg == CONFIG_MSG_BOOTSEL) {
             config_bootsel(g, st);
+        } else if (st->msg == CONFIG_MSG_BATTERY) {
+            config_battery(g, st);
         } else {
             config_value(g, st);
         }
@@ -133,9 +238,17 @@ static void screen(gfx_t *g, const ui_state_t *st) {
 
     widget_keyboard(g, kb_x(g), 0, KB_H, st->keys, st->marks);
 
+    // Mode just toggled: its name, large, for a moment
+    if (a && active(a->mode_at, now, UI_BANNER_MS)) {
+        const char *name = st->chord_mode ? "CHORD" : "NORMAL";
+        int len = (int)strlen(name);
+        gfx_text_scaled(g, (g->width - len * 16) / 2, KB_H + (g->height - KB_H - 14) / 2,
+                        name, 2);
+        return;
+    }
+
     // Octave on the bottom line in both modes
-    put_int(put_str(line, "Octava: "), st->octave, false);
-    gfx_text(g, 0, TEXT_Y + 9, line);
+    octave_line(g, st, a, now);
     if (!st->chord_mode) {
         return;
     }
@@ -152,8 +265,8 @@ static void screen(gfx_t *g, const ui_state_t *st) {
     }
 }
 
-void ui_render(gfx_t *g, const ui_state_t *st) {
+void ui_render(gfx_t *g, const ui_state_t *st, const ui_anim_t *a, uint32_t now) {
     gfx_clear(g);
-    screen(g, st);
+    screen(g, st, a, now);
     widget_hold_border(g, st->progress);
 }

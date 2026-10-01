@@ -1,26 +1,29 @@
 # Roadmap
 
-Everything the MicroPython firmware did is implemented, plus a keyboard
-screen, start-up animation, debounce setting and USB flash mode from config
-mode. It hasn't run on the pedalboard yet.
+Everything the MicroPython firmware did is implemented and running on the
+pedalboard, plus a keyboard screen, start-up animation, mode and octave
+transitions, a debounce setting, USB flash mode and a MIDI panic from
+config mode, a watchdog, and for battery use: charge monitoring, idle
+dimming, screen off and deep sleep.
+
+## To check on the hardware
+
+- [ ] Current draw playing, with the screen off and in deep sleep (crystal,
+  PLL and ring oscillator all stopped)
+- [ ] Waking from deep sleep on every board, and the press playing
+- [ ] USB flash mode after having been in deep sleep
+- [ ] No watchdog resets in normal use, including settings saves and deep sleep
+- [ ] Battery voltage against a multimeter (`power.drop_mv`), also on a W board
 
 ## Next
 
-- [ ] Try it on the pedalboard
-- [ ] MIDI panic on demand
-- [ ] Watchdog
-- [ ] Display animations for notes, octave shifts, chord and mode changes
+Each in its own pull request:
+
 - [ ] Expression pedal on GP28 / ADC2 (CC11, calibration)
 - [ ] Instrument presets (`instList` in `legacy/Piedalera.py`)
-- [ ] Wear levelling for the settings sector, if octave saves turn out
-  frequent
-
-## Later
-
-- **Drumpad link:** a second Pico forwards hits from a MIDI drumpad over
+- [ ] Drumpad link: a second Pico forwards hits from a MIDI drumpad over
   BLE MIDI, and the pedalboard turns them into bass notes, strums or
-  arpeggios of the current chord. Needs a W board; parked until the
-  keyboard works.
+  arpeggios of the current chord. Needs a W board.
 
 ## Open questions
 

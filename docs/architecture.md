@@ -28,6 +28,8 @@ the drawing modules also run in the display preview (`tools/preview`).
 | `input.c`       | 0    |      | GPIO setup, one read of all inputs |
 | `debounce.c`    | 0    | ✓    | Per-input debounce |
 | `midi.c`        | 0    |      | UART at 31250 baud, ring buffer drained by the TX interrupt |
+| `power.c`       | 0    |      | 48 MHz system clock, dormant sleep, VSYS reading |
+| `battery.c`     | –    | ✓    | Battery types and discharge curves |
 | `notes.c`       | 0    | ✓    | Note on/off with a count per note, power-up panic |
 | `keyboard.c`    | 0    | ✓    | Normal and chord mode, chord table |
 | `octave.c`      | 0    | ✓    | Octave buttons, auto-repeat, both-buttons gesture |
@@ -59,8 +61,14 @@ the drawing modules also run in the display preview (`tools/preview`).
   the buttons are then ignored until both are released.
 - **MIDI** never blocks. Note-offs are sent as note-on with velocity 0 to
   share running status; the status byte is repeated after 1 s of silence.
-  Power-up sends All Notes Off and All Sound Off.
+  Power-up and entering config mode send All Notes Off and All Sound Off.
+- **Watchdog:** 3 s, fed by core 0 while core 1's loop count also moves, so
+  a hang on either core resets the Pico. It stands still in deep sleep and
+  is turned off before the USB flash reboot. After a watchdog reset the
+  splash is skipped.
 - **Config mode** clamps values and leaves when any other key is released.
+  On a setting's screen a G' tap, or 3 s untouched (the last second on the
+  border), goes back to the map instead.
 - **Holds:** while both octave buttons or G' are held towards their 1 s
   action, the snapshot carries the progress and core 1 inverts that share of
   the screen border, clockwise from the top middle.
@@ -69,6 +77,29 @@ the drawing modules also run in the display preview (`tools/preview`).
   frame, then calls `reset_usb_boot()`.
 - **Saving** happens after config mode or 5 s after the last octave change,
   and only when the text differs from what is stored.
+- **Transitions:** core 1 compares each snapshot with the previous one:
+  a chord mode toggle shows `CHORD` or `NORMAL` large for 0.8 s, and a new
+  octave slides in over 150 ms. Frames are sent every period while one
+  runs.
+- **Clock:** 48 MHz from the USB PLL; the system PLL stays off.
+- **Deep sleep:** after `power.sleep_s` without input, core 0 writes any
+  pending settings, asks core 1 to turn the display off and park, flushes
+  MIDI, moves the clocks onto the crystal, stops the PLL and the ring
+  oscillator and puts the crystal to sleep (dormant). The ring oscillator
+  restarts on waking, since a watchdog reboot (USB flash mode) doesn't reset
+  it and needs it to start again. A press edge on any input wakes it; the clocks
+  come back at 48 MHz and the scan picks up the press, which plays as
+  usual, a few ms late. The timer stands still while dormant, so after
+  waking core 0 waits 100 ms for a press before sleeping again. If core 1
+  doesn't park within 200 ms, core 0 tries again a second later.
+- **Battery:** once a second at full speed, core 0 averages 16 ADC
+  samples of VSYS/3 (GPIO29), adds `power.drop_mv` for the supply diode and
+  smooths it over about 8 readings. The charge comes from a per-cell
+  discharge curve for `power.battery`. Battery changes in the snapshot don't
+  count as input for dimming.
+- **Idle:** with no snapshot change for `display.dim_s` the contrast drops
+  to a quarter, and after `display.off_s` the panel sleeps (0xAE) until the
+  next change.
 - **Display:** frames go out as one DMA transfer of I2C commands at
   400 kHz (about 12 ms for 128×32), only when the snapshot changes. A
   missing display is retried every 500 ms.

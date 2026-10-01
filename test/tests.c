@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "app.h"
+#include "battery.h"
 #include "config_mode.h"
 #include "gfx.h"
 #include "input.h"
@@ -95,6 +96,7 @@ static void test_settings(void) {
     s.keys_pull = PULL_UP;
     s.keys_active_low = false;
     s.octave_delay_ms = 800;
+    s.power_battery = BATTERY_NIMH;
     settings_format(&s, out, sizeof(out));
     settings_t back;
     CHECK(settings_parse(&back, out, sizeof(out)));
@@ -245,6 +247,7 @@ static void test_hold(void) {
     keyboard_press(KEY_HOLD, 3);
     keyboard_release(KEY_HOLD, 3);
     CHECK(keyboard_hold());
+    CHECK(!(keyboard_marks() & INPUT_BIT(KEY_HOLD)));  // shown as HOLD only
 
     keyboard_press(0, 3);
     keyboard_release(0, 3);
@@ -345,6 +348,7 @@ static void test_app(void) {
     app_ui_state(&ui);
     CHECK(ui.config && !ui.chord_mode && ui.msg == CONFIG_MSG_TITLE);
     CHECK(ui.progress == 0);
+    EXPECT("cc 123 0", "cc 120 0");         // entering it silences the synth
     tick(0, 1100);
 
     // E: velocity down, auto-repeat after 200 ms then every 50 ms
@@ -395,7 +399,8 @@ static void test_app(void) {
     tick(0, 6110);
     CHECK(s.octave_current == 4);
     CHECK(!app_save_due(11099));
-    CHECK(app_save_due(11100));
+    CHECK(app_save_pending() && !app_save_pending());   // taken early, e.g. to sleep
+    CHECK(!app_save_due(11100));
 
     // Back into config: debounce on D'/E', then a short G' press leaves
     for (uint32_t t = 12000; t <= 13000; t += 10) tick(both, t);
@@ -409,37 +414,60 @@ static void test_app(void) {
     tick(INPUT_BIT(14), 13900);             // first repeat after 500 ms
     tick(0, 13910);
     CHECK(s.keys_debounce_ms == 4);
-    tick(INPUT_BIT(KEY_BOOTSEL), 14000);
-    tick(INPUT_BIT(KEY_BOOTSEL), 14999);
+
+    // Untouched for 3 s, a setting's screen goes back to the map, showing
+    // the last second on the border
+    tick(0, 15899);
+    app_ui_state(&ui);
+    CHECK(ui.msg == CONFIG_MSG_DEBOUNCE && ui.progress == 0);
+    tick(0, 16400);
+    app_ui_state(&ui);
+    CHECK(ui.progress == 127);
+    tick(0, 16900);
+    app_ui_state(&ui);
+    CHECK(ui.config && ui.msg == CONFIG_MSG_TITLE && ui.progress == 0);
+    tick(INPUT_BIT(16), 17000);             // and back to debounce
+    tick(0, 17100);
+    CHECK(s.keys_debounce_ms == 5);
+    app_ui_state(&ui);
+    CHECK(ui.msg == CONFIG_MSG_DEBOUNCE);
+    // A G' tap goes back to the map from a setting, and leaves from the map
+    tick(INPUT_BIT(KEY_BOOTSEL), 18000);
+    tick(INPUT_BIT(KEY_BOOTSEL), 18999);
     CHECK(!app_bootsel());
-    tick(0, 15000);
+    tick(0, 19000);
+    app_ui_state(&ui);
+    CHECK(ui.config && ui.msg == CONFIG_MSG_TITLE);
+    tick(INPUT_BIT(KEY_BOOTSEL), 19100);
+    tick(0, 19200);
     app_ui_state(&ui);
     CHECK(!ui.config && !app_bootsel());
-    tick(0, 15001);                         // octave buttons unblock
+    tick(0, 19201);                         // octave buttons unblock
 
     // Holding G' for a second asks for the bootloader
-    for (uint32_t t = 16000; t <= 17000; t += 10) tick(both, t);
-    tick(0, 17100);
+    for (uint32_t t = 20000; t <= 21000; t += 10) tick(both, t);
+    tick(0, 21100);
     // USB FLASH shows after 0.1 s and the settings are saved then; the
     // reboot comes as the border closes
-    tick(INPUT_BIT(KEY_BOOTSEL), 18000);
-    tick(INPUT_BIT(KEY_BOOTSEL), 18099);
+    tick(INPUT_BIT(KEY_BOOTSEL), 22000);
+    tick(INPUT_BIT(KEY_BOOTSEL), 22099);
     app_ui_state(&ui);
-    CHECK(ui.msg != CONFIG_MSG_BOOTSEL && !app_save_due(18099));
-    tick(INPUT_BIT(KEY_BOOTSEL), 18100);
+    CHECK(ui.msg != CONFIG_MSG_BOOTSEL && !app_save_due(22099));
+    tick(INPUT_BIT(KEY_BOOTSEL), 22100);
     app_ui_state(&ui);
     CHECK(ui.msg == CONFIG_MSG_BOOTSEL);
-    CHECK(app_save_due(18100) && !app_save_due(18101));
-    tick(INPUT_BIT(KEY_BOOTSEL), 18250);
-    CHECK(!app_bootsel() && !app_save_due(18250));
+    CHECK(app_save_due(22100) && !app_save_due(22101));
+    tick(INPUT_BIT(KEY_BOOTSEL), 22250);
+    CHECK(!app_bootsel() && !app_save_due(22250));
     app_ui_state(&ui);
     CHECK(ui.progress == 63);
-    tick(INPUT_BIT(KEY_BOOTSEL), 19000);
+    tick(INPUT_BIT(KEY_BOOTSEL), 23000);
     CHECK(app_bootsel());
     app_ui_state(&ui);
     CHECK(ui.config && ui.msg == CONFIG_MSG_BOOTSEL && ui.progress == 255);
-    tick(0, 19100);                         // stays put until the reboot
+    tick(0, 23100);                         // stays put until the reboot
     CHECK(app_bootsel());
+    CHECK(app_idle_ms(23600) == 500);       // since G' was released
 }
 
 // Display
@@ -448,49 +476,162 @@ static bool pixel(const gfx_t *g, int x, int y) {
     return g->buf[(y >> 3) * g->width + x] >> (y & 7) & 1;
 }
 
+// Any pixel lit in [x0, x1) x [y0, y1)
+static bool lit(const gfx_t *g, int x0, int y0, int x1, int y1) {
+    for (int y = y0; y < y1; y++) {
+        for (int x = x0; x < x1; x++) {
+            if (pixel(g, x, y)) return true;
+        }
+    }
+    return false;
+}
+
+// Battery
+
+static void test_battery(void) {
+    // Charge along each curve, per cell
+    CHECK(battery_level(BATTERY_LIION, 1, 4200) == 255);
+    CHECK(battery_level(BATTERY_LIION, 1, 3800) == 102);         // 40 %
+    CHECK(battery_level(BATTERY_LIION, 1, 3200) == 0);
+    CHECK(battery_level(BATTERY_NIMH, 3, 3600) == 63);          // 25 %
+    CHECK(battery_level(BATTERY_NONE, 3, 4000) == 0);
+    CHECK(!strcmp(battery_label(BATTERY_ALKALINE), "Alk."));
+
+    // The reading adds the diode drop and is smoothed
+    settings_defaults(&s);
+    s.power_battery = BATTERY_NIMH;
+    s.power_cells = 3;
+    memset(&in, 0, sizeof(in));
+    app_init(&s);
+    ui_state_t ui;
+    app_ui_state(&ui);
+    CHECK(!ui.battery);                     // until the first reading
+    app_battery(3300);
+    app_ui_state(&ui);
+    CHECK(ui.battery && ui.battery_mv == 3600 && ui.battery_cells == 3);
+    app_battery(3380);
+    app_ui_state(&ui);
+    CHECK(ui.battery_mv == 3610);
+
+    // F' opens the battery page from the config map, G' goes back
+    const uint32_t both = INPUT_BIT(INPUT_OCT_UP) | INPUT_BIT(INPUT_OCT_DOWN);
+    for (uint32_t t = 0; t <= 1000; t += 10) tick(both, t);
+    tick(0, 1100);
+    tick(INPUT_BIT(KEY_BATTERY), 1200);
+    tick(0, 1300);
+    app_ui_state(&ui);
+    CHECK(ui.config && ui.msg == CONFIG_MSG_BATTERY);
+    tick(INPUT_BIT(KEY_BOOTSEL), 1400);
+    tick(0, 1500);
+    app_ui_state(&ui);
+    CHECK(ui.config && ui.msg == CONFIG_MSG_TITLE);
+
+    // Without a battery F' just leaves, as any other key
+    s.power_battery = BATTERY_NONE;
+    tick(INPUT_BIT(KEY_BATTERY), 1600);
+    tick(0, 1700);
+    app_ui_state(&ui);
+    CHECK(!ui.config);
+
+    // A new reading isn't input, so the screen still dims
+    ui_anim_t a = { 0 };
+    ui_anim_update(&a, &ui, 0);
+    ui.battery_mv += 10;
+    ui.battery_level++;
+    ui_anim_update(&a, &ui, 5000);
+    CHECK(ui_idle_ms(&a, 5000) == 5000);
+}
+
 static void test_ui(void) {
     static gfx_t g;
     gfx_init(&g, 128, 32);
     int kx = (128 - WIDGET_KEYS_WIDTH) / 2;
 
-    // Keyboard on top; a pressed white key is an outline that wraps around
-    // the black key next to it
+    // Keyboard on top: keys are outlines that wrap around the black keys,
+    // filled while pressed
     ui_state_t st = { .octave = 3, .keys = 1u << 0, .root = -1 };
-    ui_render(&g, &st);
-    CHECK(pixel(&g, kx, 0) && pixel(&g, kx, 11));      // C outline
-    CHECK(!pixel(&g, kx + 3, 9));                       // C inside
-    CHECK(pixel(&g, kx + 12, 9));                       // D, not pressed
+    ui_render(&g, &st, NULL, 0);
+    CHECK(pixel(&g, kx + 3, 9));                        // C, pressed
+    CHECK(pixel(&g, kx + 10, 9) && !pixel(&g, kx + 13, 9));  // D outline
     int notch = widget_key_x(kx, 1);                    // Db
-    CHECK(pixel(&g, notch - 2, 3));                     // outline beside it
-    CHECK(pixel(&g, notch - 1, 8));                     // and below it
+    CHECK(pixel(&g, notch, 3) && !pixel(&g, notch + 1, 3));  // its outline
     CHECK(!pixel(&g, notch - 1, 3));                    // margin stays dark
+    CHECK(pixel(&g, notch + 4, 3) && pixel(&g, notch + 2, 8));  // D wraps it
 
     // Chord mode: chord line and octave line under the keyboard
     st = (ui_state_t){ .octave = 3, .chord_mode = true, .chord = 2, .root = 0,
                        .hold = true };
-    ui_render(&g, &st);
+    ui_render(&g, &st, NULL, 0);
     int text = 0;
     for (int x = 0; x < 128; x++) text |= g.buf[2 * 128 + x] | g.buf[3 * 128 + x];
     CHECK(text);
 
     // Config map and value screens draw something below the keyboard
     st = (ui_state_t){ .config = true, .msg = CONFIG_MSG_TITLE, .root = -1 };
-    ui_render(&g, &st);
+    ui_render(&g, &st, NULL, 0);
     CHECK(pixel(&g, widget_key_x(kx, 0) + 1, 13));      // arc under C-D
     st.msg = CONFIG_MSG_TRANSPOSE;
     st.msg_value = -3;
-    ui_render(&g, &st);
+    ui_render(&g, &st, NULL, 0);
     CHECK(pixel(&g, 64, 23));                           // bar frame
 
     // Hold border: inverted from the top middle, clockwise
     st.progress = 64;   // a quarter: the top right and part of the right
-    ui_render(&g, &st);
+    ui_render(&g, &st, NULL, 0);
     CHECK(pixel(&g, 64, 23));                           // untouched
     CHECK(pixel(&g, 127, 5) && !pixel(&g, 0, 5));
     CHECK(!pixel(&g, 70, 0));                           // lit key, inverted
     st.progress = 255;
-    ui_render(&g, &st);
+    ui_render(&g, &st, NULL, 0);
     CHECK(pixel(&g, 0, 5) && pixel(&g, 5, 31));
+
+    // Transitions: a mode banner, then an octave slide clipped to its line;
+    // idle time counts from the last change
+    ui_anim_t a = { 0 };
+    st = (ui_state_t){ .octave = 3, .root = -1 };
+    ui_anim_update(&a, &st, 1000);
+    CHECK(!ui_anim_running(&a, 1000));
+    st.chord_mode = true;
+    ui_anim_update(&a, &st, 2000);
+    CHECK(ui_anim_running(&a, 2000 + UI_BANNER_MS - 1));
+    CHECK(!ui_anim_running(&a, 2000 + UI_BANNER_MS));
+    ui_render(&g, &st, &a, 2400);
+    CHECK(lit(&g, 80, 15, 104, 29));                    // "CHORD", large
+    ui_render(&g, &st, &a, 2800);
+    CHECK(!lit(&g, 80, 15, 104, 29));
+    st.octave = 4;
+    ui_anim_update(&a, &st, 3000);
+    CHECK(ui_anim_running(&a, 3100) && !ui_anim_running(&a, 3000 + UI_SLIDE_MS));
+    ui_render(&g, &st, &a, 3075);
+    CHECK(lit(&g, 64, 23, 72, 32) && !lit(&g, 64, 14, 72, 23));
+    CHECK(ui_idle_ms(&a, 5000) == 2000);
+
+    // Battery page: voltage left of the column, type above the charge bar
+    st = (ui_state_t){ .config = true, .msg = CONFIG_MSG_BATTERY, .root = -1, .battery = true,
+                       .battery_level = 128, .battery_mv = 4120, .battery_type = BATTERY_LIION,
+                       .battery_cells = 1 };
+    ui_render(&g, &st, NULL, 0);
+    CHECK(lit(&g, 0, 14, 64, 28) && lit(&g, 64, 13, 128, 21) && pixel(&g, 64, 23));
+
+    // Battery: only on the config map, filling from the bottom; nearly empty
+    // it blinks an exclamation mark, so frames keep coming
+    st = (ui_state_t){ .octave = 3, .root = -1, .battery = true, .battery_level = 255 };
+    ui_render(&g, &st, NULL, 0);
+    CHECK(!lit(&g, 100, 13, 114, 32));                  // not while playing
+    st.config = true;
+    ui_render(&g, &st, NULL, 0);
+    CHECK(lit(&g, 107, 19, 110, 21));                   // full to the top
+    st.battery_level = 30;
+    ui_render(&g, &st, NULL, 0);
+    CHECK(!lit(&g, 107, 19, 110, 20));
+    st.battery_level = 10;
+    ui_anim_t b = { 0 };
+    ui_anim_update(&b, &st, 0);
+    CHECK(ui_anim_running(&b, 0));
+    ui_render(&g, &st, &b, 0);
+    CHECK(lit(&g, 107, 19, 110, 22));                   // "!" on
+    ui_render(&g, &st, &b, UI_BLINK_MS);
+    CHECK(!lit(&g, 107, 19, 110, 22));                  // and off
 
     // Text at y = 12 straddles pages 1 and 2
     gfx_clear(&g);
@@ -551,6 +692,7 @@ int main(void) {
     test_hold();
     test_octave();
     test_app();
+    test_battery();
     test_ui();
     test_splash();
     if (failures) {

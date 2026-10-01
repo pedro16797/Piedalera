@@ -107,15 +107,48 @@ void gfx_text_spaced(gfx_t *g, int x, int y, const char *str, int scale, int adv
     }
 }
 
-void gfx_text(gfx_t *g, int x, int y, const char *str) {
+int gfx_text_ink(gfx_t *g, int x, int y, const char *str, int scale, int gap) {
+    int width = 0;
+    for (; *str; str++) {
+        uint16_t cols[8];
+        glyph(*str, cols);
+        int first = 0, last = 7;
+        while (first < 8 && !cols[first]) first++;
+        while (last > first && !cols[last]) last--;
+        if (first == 8) {
+            first = 0, last = 2;                            // space
+        }
+        for (int i = first; g && i <= last; i++) {
+            for (int bit = 0; bit < 9; bit++) {
+                if (cols[i] >> bit & 1) {
+                    gfx_fill(g, x + width + (i - first) * scale, y + bit * scale,
+                             scale, scale, true);
+                }
+            }
+        }
+        width += (last - first + 1) * scale + gap;
+    }
+    return width ? width - gap : 0;
+}
+
+void gfx_text_clipped(gfx_t *g, int x, int y, const char *str, int top, int bottom) {
     if (y <= -9 || y >= g->height) {
         return;
+    }
+    // Glyph rows outside [top, bottom)
+    uint16_t mask = 0x1FF;
+    for (int i = 0; i < 9; i++) {
+        if (y + i < top || y + i >= bottom) mask &= ~(1u << i);
     }
     for (; *str && x < g->width; str++, x += 8) {
         uint16_t cols[8];
         glyph(*str, cols);
         for (int i = 0; i < 8; i++) {
-            column(g, x + i, y, cols[i]);
+            column(g, x + i, y, cols[i] & mask);
         }
     }
+}
+
+void gfx_text(gfx_t *g, int x, int y, const char *str) {
+    gfx_text_clipped(g, x, y, str, 0, g->height);
 }

@@ -1,21 +1,30 @@
 #include <string.h>
 
+#include "battery.h"
 #include "input.h"
 #include "settings.h"
 
 #define HEADER "# piedalera-config v1"
 
-typedef enum { T_U8, T_I8, T_U16, T_BOOL, T_PULL } type_t;
+typedef enum { T_U8, T_I8, T_U16, T_BOOL, T_NAME } type_t;
 
 typedef struct {
     const char *name;
     uint16_t offset;
     uint8_t type;
     int16_t min, max, def;
+    const char *const *names;   // T_NAME: value names, 0 to max
 } field_t;
 
 #define F(key, member, type, min, max, def) \
-    { key, offsetof(settings_t, member), type, min, max, def }
+    { key, offsetof(settings_t, member), type, min, max, def, NULL }
+
+// A uint8_t stored as the index of its name
+#define N(key, member, names, count, def) \
+    { key, offsetof(settings_t, member), T_NAME, 0, (count) - 1, def, names }
+
+// Indexed by pull_t
+static const char *const PULL_NAMES[] = { "none", "up", "down" };
 
 static const field_t FIELDS[] = {
     F("display.width",      display_width,      T_U8,   64,  128,  128),
@@ -23,6 +32,8 @@ static const field_t FIELDS[] = {
     F("display.col_offset", display_col_offset, T_U8,    0,    4,    4),
     F("display.brightness", display_brightness, T_U8,    0,  255,   15),
     F("display.splash",     display_splash,     T_BOOL,  0,    1,    1),
+    F("display.dim_s",      display_dim_s,      T_U16,   0, 3600,   60),
+    F("display.off_s",      display_off_s,      T_U16,   0, 3600,  300),
     F("midi.channel",       midi_channel,       T_U8,    1,   16,    1),
     F("midi.velocity",      midi_velocity,      T_U8,    1,  127,   95),
     F("midi.transpose",     midi_transpose,     T_I8,  -12,   12,    0),
@@ -33,14 +44,15 @@ static const field_t FIELDS[] = {
     F("octave.delay_ms",    octave_delay_ms,    T_U16,   0,  900,  100),
     F("octave.repeat_ms",   octave_repeat_ms,   T_U16,  50, 5000,  500),
     F("keys.active_low",    keys_active_low,    T_BOOL,  0,    1,    1),
-    F("keys.pull",          keys_pull,          T_PULL,  0,    2, PULL_NONE),
+    N("keys.pull",          keys_pull,          PULL_NAMES, 3, PULL_NONE),
     F("keys.debounce_ms",   keys_debounce_ms,   T_U8,    0,   50,    5),
+    F("power.sleep_s",      power_sleep_s,      T_U16,   0, 7200,  600),
+    N("power.battery",      power_battery,      BATTERY_NAMES, BATTERY_TYPES, BATTERY_LIION),
+    F("power.cells",        power_cells,        T_U8,    1,    4,    1),
+    F("power.drop_mv",      power_drop_mv,      T_U16,   0, 1000,  300),
 };
 
 #define FIELD_COUNT (sizeof(FIELDS) / sizeof(FIELDS[0]))
-
-// Indexed by pull_t
-static const char *const PULL_NAMES[] = { "none", "up", "down" };
 
 static void set(settings_t *s, const field_t *f, int v) {
     uint8_t *p = (uint8_t *)s + f->offset;
@@ -105,9 +117,9 @@ static bool parse_value(const field_t *f, const char *v, size_t len, int *out) {
         if (equals(v, len, "false")) { *out = 0; return true; }
         return false;
     }
-    if (f->type == T_PULL) {
-        for (int i = 0; i <= PULL_DOWN; i++) {
-            if (equals(v, len, PULL_NAMES[i])) { *out = i; return true; }
+    if (f->type == T_NAME) {
+        for (int i = 0; i <= f->max; i++) {
+            if (equals(v, len, f->names[i])) { *out = i; return true; }
         }
         return false;
     }
@@ -194,8 +206,8 @@ size_t settings_format(const settings_t *s, char *out, size_t size) {
         const char *value = num;
         if (f->type == T_BOOL) {
             value = v ? "true" : "false";
-        } else if (f->type == T_PULL) {
-            value = PULL_NAMES[v <= PULL_DOWN ? v : PULL_NONE];
+        } else if (f->type == T_NAME) {
+            value = f->names[v <= f->max ? v : f->def];
         } else {
             // Right-aligned decimal
             char *p = num + sizeof(num) - 1;

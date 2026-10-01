@@ -147,7 +147,7 @@ uint32_t keyboard_marks(void) {
     if (!chord_mode) {
         return 0;
     }
-    uint32_t marks = hold ? INPUT_BIT(KEY_HOLD) : 0;
+    uint32_t marks = 0;
     for (int i = 0; i < 7; i++) {
         if (SELECTOR[i] == chord) {
             marks |= INPUT_BIT(12 + i);

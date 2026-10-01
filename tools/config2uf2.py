@@ -39,6 +39,8 @@ SCHEMA = {
     "display.col_offset": (0, 4),
     "display.brightness": (0, 255),
     "display.splash":     bool,
+    "display.dim_s":      (0, 3600),
+    "display.off_s":      (0, 3600),
     "midi.channel":       (1, 16),
     "midi.velocity":      (1, 127),
     "midi.transpose":     (-12, 12),
@@ -51,6 +53,10 @@ SCHEMA = {
     "keys.active_low":    bool,
     "keys.pull":          ("up", "down", "none"),
     "keys.debounce_ms":   (0, 50),
+    "power.sleep_s":      (0, 7200),
+    "power.battery":      ("none", "alkaline", "nimh", "li-ion"),
+    "power.cells":        (1, 4),
+    "power.drop_mv":      (0, 1000),
 }
 
 
