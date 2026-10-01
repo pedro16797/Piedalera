@@ -27,7 +27,7 @@ saved to the same place.
 | `midi.channel`       | 1       | 1–16               | MIDI channel |
 | `midi.velocity`      | 95      | 1–127              | Note velocity |
 | `midi.transpose`     | 0       | −12–12             | Semitones added to every note |
-| `midi.bank_lsb`      | 12      | 0–127              | Sound variation: bank select CC0 = 121, CC32 = value |
+| `midi.sound`         | 0       | 0–32               | Sound at power-up: 0 leaves the synth's own, else its place in the [sound list](#sounds) |
 | `octave.min`         | 0       | 0–8                | Lowest octave |
 | `octave.max`         | 7       | 0–8                | Highest octave |
 | `octave.current`     | 3       | `min`–`max`        | Octave at power-up; saved as you play |
@@ -56,9 +56,23 @@ visit to config mode: move it on the map and its page opens. Turning it off
 in config mode forgets the travel, and so does installing a settings file,
 unless the file carries the pedal's own `min` and `max`.
 
+## Sounds
+
+`sound` lines list the sounds G and A pick in config mode, in order:
+
+```ini
+sound = 0 0 1 Grand Piano
+```
+
+Bank select MSB (CC0) and LSB (CC32), 0–127, the program, 1–128 as synth
+manuals number them, and a name of up to 15 characters. Up to 32 sounds;
+any `sound` line replaces the whole default list, General MIDI sounds that
+the Yamaha MU5 plays from bank 0 0. Other synths list their banks in their
+manual.
+
 ## Flash format
 
-`key = value` lines after a `# piedalera-config v1` header, NUL-terminated
+`key = value` lines, then the `sound` lines, after a `# piedalera-config v1` header, NUL-terminated
 and padded with `0xFF` to 4096 bytes, in the second to last flash sector
 (`0x101FE000` on 2 MB boards, `0x103FE000` on 4 MB ones). The last sector is
 left free for the RP2350-E10 bootrom workaround, and RP2350 config UF2s use

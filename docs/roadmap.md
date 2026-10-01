@@ -3,7 +3,8 @@
 Everything the MicroPython firmware did is implemented and running on the
 pedalboard, plus a keyboard screen, start-up animation, mode and octave
 transitions, a debounce setting, USB flash mode and a MIDI panic from
-config mode, a watchdog, an expression pedal calibrated in config mode, and
+config mode, a watchdog, an expression pedal calibrated in config mode, a
+sound list editable in the settings file (or the synth's own sound), and
 for battery use: charge monitoring, idle dimming, screen off and deep sleep.
 
 ## To check on the hardware
@@ -22,13 +23,13 @@ for battery use: charge monitoring, idle dimming, screen off and deep sleep.
 - [ ] Expression probe: an empty jack found within a second, a plugged pedal
   never taken for one at any position, on Pico and Pico 2
 - [ ] The screen no longer going dark for a moment while playing
+- [ ] The Yamaha MU5 keeping its own sound by default, and taking each
+  listed sound when picked and at power-up
 
 ## Next
 
 Each in its own pull request:
 
-- [ ] Sound banks: named sounds (bank and program, as `instList` in
-  `legacy/Piedalera.py`) picked from config mode
 - [ ] Mode mode: a third mode where the upper keys pick a musical mode
   (Ionian, Dorian, Phrygian, Lydian, Mixolydian, Aeolian, Locrian) instead
   of a chord type
@@ -41,10 +42,8 @@ Each in its own pull request:
 
 ## Open questions
 
-- Which Roland module is the target, and which bank/program list applies?
-- Changing the bank sends bank select without a program change, which the
-  synth may ignore until the next one. Should the firmware send a program
-  change too, and the bank at power-up?
+- Whether the default sound list should use any of the MU5's banks beyond
+  General MIDI.
 - What the lower keys play in mode mode: the root's diatonic chord, or the
   scale's notes from the root?
 - DIY expression pedal design.

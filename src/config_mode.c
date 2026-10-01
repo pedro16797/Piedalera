@@ -1,9 +1,9 @@
 #include "battery.h"
 #include "config_mode.h"
 #include "expression.h"
-#include "midi.h"
+#include "notes.h"
 
-typedef enum { BRIGHTNESS, VELOCITY, BANK, TRANSPOSE, DEBOUNCE } target_t;
+typedef enum { BRIGHTNESS, VELOCITY, SOUND, TRANSPOSE, DEBOUNCE } target_t;
 
 typedef struct {
     uint8_t key;
@@ -18,8 +18,8 @@ static const function_t FUNCTIONS[] = {
     {  2, BRIGHTNESS,  16, 500, 200 },  // D
     {  4, VELOCITY,    -1, 200,  50 },  // E
     {  5, VELOCITY,     1, 200,  50 },  // F
-    {  7, BANK,        -1, 500, 200 },  // G
-    {  9, BANK,         1, 500, 200 },  // A
+    {  7, SOUND,       -1, 500, 200 },  // G
+    {  9, SOUND,        1, 500, 200 },  // A
     { 11, TRANSPOSE,   -1, 500, 200 },  // B
     { 12, TRANSPOSE,    1, 200, 100 },  // C'
     { 14, DEBOUNCE,    -1, 500, 100 },  // D'
@@ -73,14 +73,13 @@ static void apply(const function_t *f) {
         after = msg_value = s->midi_velocity = clamp(before + f->delta, 1, 127);
         msg = CONFIG_MSG_VELOCITY;
         break;
-    case BANK:
-        before = s->midi_bank_lsb;
-        after = msg_value = s->midi_bank_lsb = clamp(before + f->delta, 0, 127);
-        msg = CONFIG_MSG_BANK;
-        if (after != before) {
-            uint8_t ch = s->midi_channel - 1;
-            midi_cc(ch, MIDI_CC_BANK_MSB, MIDI_BANK_MSB_GM2);
-            midi_cc(ch, MIDI_CC_BANK_LSB, after);
+    case SOUND:
+        // 0 sends nothing: the synth's own choice applies from then on
+        before = s->midi_sound;
+        after = msg_value = s->midi_sound = clamp(before + f->delta, 0, s->sound_count);
+        msg = CONFIG_MSG_SOUND;
+        if (after != before && after) {
+            notes_sound(&s->sounds[after - 1]);
         }
         break;
     case TRANSPOSE:

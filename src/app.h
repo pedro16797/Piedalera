@@ -8,7 +8,7 @@
 #include "ui.h"
 
 // Core 0 logic: routes debounced inputs to the octave buttons, keyboard and
-// config mode. Sends a MIDI panic on init.
+// config mode. Sends a MIDI panic on init, and the chosen sound if any.
 void app_init(settings_t *s);
 void app_update(const input_state_t *in, uint32_t now_ms);
 

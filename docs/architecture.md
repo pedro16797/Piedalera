@@ -63,6 +63,8 @@ the drawing modules also run in the display preview (`tools/preview`).
 - **MIDI** never blocks. Note-offs are sent as note-on with velocity 0 to
   share running status; the status byte is repeated after 1 s of silence.
   Power-up and entering config mode send All Notes Off and All Sound Off.
+  A sound picked from the list is sent as bank select (CC0, CC32) and
+  program change, at power-up too; the synth's own sound sends nothing.
 - **Watchdog:** 3 s, fed by core 0 while core 1's loop count also moves, so
   a hang on either core resets the Pico. It stands still in deep sleep and
   is turned off before the USB flash reboot. After a watchdog reset the

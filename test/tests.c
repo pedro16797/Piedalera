@@ -26,7 +26,7 @@ static int failures;
     } \
 } while (0)
 
-// Fake MIDI: records messages as "on 48 95", "off 48", "cc 123 0"
+// Fake MIDI: records messages as "on 48 95", "off 48", "cc 123 0", "pc 0"
 
 static char sent[64][24];
 static int sent_count;
@@ -47,6 +47,10 @@ void midi_note_off(uint8_t ch, uint8_t note) {
 
 void midi_cc(uint8_t ch, uint8_t cc, uint8_t value) {
     snprintf(next_slot(ch), sizeof(sent[0]), "cc %d %d", cc, value);
+}
+
+void midi_program(uint8_t ch, uint8_t program) {
+    snprintf(next_slot(ch), sizeof(sent[0]), "pc %d", program);
 }
 
 static void clear_sent(void) {
@@ -133,6 +137,28 @@ static void test_settings(void) {
     CHECK(settings_parse(&s, limits, strlen(limits)));
     CHECK(s.display_height == d.display_height);
     CHECK(s.octave_delay_ms == d.octave_delay_ms);
+
+    // Any sound line replaces the default list; bad ones are skipped, and
+    // a choice past the end means the synth's own
+    const char *sounds =
+        "# piedalera-config v1\n"
+        "midi.sound = 3\n"
+        "sound = 0 0 34 Fingered Bass   # comment\n"
+        "sound = 0 0 129 Too High\n"
+        "sound = 0 0 1\n"
+        "sound = 0 0 1 Name Much Too Long\n"
+        "sound = 64 3  12  Bells  &  more\n";
+    CHECK(settings_parse(&s, sounds, strlen(sounds)));
+    CHECK(s.sound_count == 2 && s.midi_sound == 0);
+    CHECK(s.sounds[0].msb == 0 && s.sounds[0].program == 34);
+    CHECK(strcmp(s.sounds[0].name, "Fingered Bass") == 0);
+    CHECK(s.sounds[1].msb == 64 && s.sounds[1].lsb == 3 && s.sounds[1].program == 12);
+    CHECK(strcmp(s.sounds[1].name, "Bells  &  more") == 0);
+    s.midi_sound = 2;
+    settings_format(&s, out, sizeof(out));
+    CHECK(strstr(out, "\nsound = 64 3 12 Bells  &  more\n"));
+    CHECK(settings_parse(&back, out, sizeof(out)));
+    CHECK(memcmp(&s, &back, sizeof(s)) == 0);
 
     // Erased flash
     char erased[16];
@@ -333,6 +359,10 @@ static void test_app(void) {
     settings_defaults(&s);
     clear_sent();
     memset(&in, 0, sizeof(in));
+    s.midi_sound = 6;                       // a chosen sound follows the panic
+    app_init(&s);
+    EXPECT("cc 123 0", "cc 120 0", "cc 0 0", "cc 32 0", "pc 19");
+    s.midi_sound = 0;                       // the synth's own: nothing more
     app_init(&s);
     EXPECT("cc 123 0", "cc 120 0");
 
@@ -363,10 +393,21 @@ static void test_app(void) {
     CHECK(s.midi_velocity == 92);
     tick(0, 2300);
 
-    // G: bank down, sends bank select
+    // G: the synth's own sound already, nothing sent; A picks the first
+    // of the list, G goes back without sending
     tick(INPUT_BIT(7), 2400);
-    EXPECT("cc 0 121", "cc 32 11");
-    tick(0, 2500);
+    EXPECT_NONE();
+    tick(0, 2410);
+    tick(INPUT_BIT(9), 2420);
+    EXPECT("cc 0 0", "cc 32 0", "pc 0");
+    app_ui_state(&ui);
+    CHECK(ui.msg == CONFIG_MSG_SOUND && ui.msg_value == 1);
+    CHECK(strcmp(ui.sound, "Grand Piano") == 0 && ui.sound_count == 12);
+    tick(0, 2430);
+    tick(INPUT_BIT(7), 2440);
+    tick(0, 2450);
+    CHECK(s.midi_sound == 0);
+    EXPECT_NONE();
 
     // Transpose clamps at +12
     for (int i = 0; i < 20; i++) {
