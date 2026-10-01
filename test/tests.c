@@ -5,6 +5,7 @@
 #include "app.h"
 #include "battery.h"
 #include "config_mode.h"
+#include "expression.h"
 #include "gfx.h"
 #include "input.h"
 #include "keyboard.h"
@@ -542,6 +543,175 @@ static void test_battery(void) {
     CHECK(ui_idle_ms(&a, 5000) == 5000);
 }
 
+// Expression pedal
+
+static uint32_t pedal_at;
+
+// Holds the pedal at raw for 100 ms, long past the smoothing; returns the
+// last value sent, -1 if none
+static int pedal(uint16_t raw) {
+    clear_sent();
+    for (int i = 0; i < 100; i++) {
+        app_expression(raw, pedal_at++);
+    }
+    int cc = -1, value = -1;
+    if (sent_count) {
+        sscanf(sent[sent_count - 1], "cc %d %d", &cc, &value);
+        CHECK(cc == s.expression_cc);
+    }
+    clear_sent();
+    return value;
+}
+
+// Into config mode with both octave buttons
+static void pedal_config(void) {
+    const uint32_t both = INPUT_BIT(INPUT_OCT_UP) | INPUT_BIT(INPUT_OCT_DOWN);
+    for (uint32_t t = 0; t <= 1000; t += 10) tick(both, pedal_at + t);
+    pedal_at += 1100;
+    tick(0, pedal_at);
+}
+
+// Out of it with another key, saving
+static void pedal_leave(void) {
+    tick(INPUT_BIT(1), pedal_at);
+    tick(0, pedal_at + 100);
+    tick(0, pedal_at + 101);                // octave buttons unblock
+    pedal_at += 200;
+}
+
+static void test_expression(void) {
+    settings_defaults(&s);
+    memset(&in, 0, sizeof(in));
+    app_init(&s);
+    pedal_at = 0;
+    ui_state_t ui;
+
+    // Off by default
+    CHECK(pedal(1000) == -1);
+    s.expression_enabled = true;
+
+    // Never learnt, it sends nothing and learns nothing while playing
+    CHECK(pedal(3000) == -1 && pedal(1000) == -1);
+    CHECK(s.expression_min > s.expression_max);
+
+    // In config mode the travel starts at the first reading, and widening
+    // it opens the pedal's page from the map: On, with the position so far
+    pedal_config();
+    pedal(1000);
+    app_ui_state(&ui);
+    CHECK(ui.msg == CONFIG_MSG_TITLE && s.expression_min == 1000 && s.expression_max == 1000);
+    CHECK(pedal(1100) == -1);
+    app_ui_state(&ui);
+    CHECK(ui.msg == CONFIG_MSG_EXPRESSION && ui.expression && !ui.expression_ready);
+    CHECK(ui.msg_value == 127);
+    pedal(1050);                            // the bar follows inside it
+    app_ui_state(&ui);
+    CHECK(ui.msg_value >= 55 && ui.msg_value <= 72);
+
+    // A slow sweep keeps the page open past its 3 s; values are sent once
+    // the travel is wide enough
+    int last = -1;
+    for (int raw = 1060; raw <= 3000; raw += 20) {
+        int v = pedal(raw);
+        if (v >= 0) last = v;
+        tick(0, pedal_at);
+    }
+    app_ui_state(&ui);
+    CHECK(ui.msg == CONFIG_MSG_EXPRESSION && ui.expression_ready);
+    CHECK(last == 127 && ui.msg_value == 127);
+    CHECK(s.expression_min == 1000 && s.expression_max >= 2990);
+    CHECK(pedal(1000) == 0);
+    int mid = pedal(2000);
+    CHECK(mid >= 62 && mid <= 65);
+
+    // Noise of a few counts settles it a step at most, then sends nothing
+    for (int i = 0; i < 200; i++) {
+        if (i == 100) clear_sent();
+        app_expression(i & 1 ? 2010 : 1990, pedal_at++);
+    }
+    EXPECT_NONE();
+
+    // The learnt travel is saved once it stops widening
+    pedal_leave();
+    app_ui_state(&ui);
+    CHECK(!ui.config && !app_save_due(pedal_at));
+    CHECK(app_save_due(pedal_at + 5000));
+
+    // While playing it never widens, e.g. with the pedal unplugged
+    CHECK(pedal(0) == 0 && pedal(4095) == 127);
+    CHECK(s.expression_min == 1000 && s.expression_max <= 3000);
+    CHECK(!app_save_due(pedal_at + 5000));
+
+    // Reversed, and on another controller
+    s.expression_invert = true;
+    CHECK(pedal(3000) == 0 && pedal(1000) == 127);
+    s.expression_invert = false;
+    s.expression_cc = 7;
+    CHECK(pedal(3000) == 127);
+    s.expression_cc = 11;
+
+    // Learnt, moving it opens its page from the map with the value; the page
+    // is left with G' like any other, and doesn't cover another setting's
+    pedal_config();
+    pedal(2000);
+    app_ui_state(&ui);
+    CHECK(ui.msg == CONFIG_MSG_EXPRESSION && ui.msg_value >= 62 && ui.msg_value <= 65);
+    uint8_t down, up;
+    CHECK(config_mode_keys(CONFIG_MSG_EXPRESSION, &down, &up) &&
+          down == KEY_VELOCITY_DOWN && up == KEY_VELOCITY_UP);
+    tick(INPUT_BIT(KEY_BOOTSEL), pedal_at);
+    tick(0, pedal_at + 100);
+    app_ui_state(&ui);
+    CHECK(ui.config && ui.msg == CONFIG_MSG_TITLE);
+    tick(INPUT_BIT(4), pedal_at + 200);
+    tick(0, pedal_at + 300);
+    pedal_at += 400;
+    pedal(3000);
+    app_ui_state(&ui);
+    CHECK(ui.msg == CONFIG_MSG_VELOCITY);
+    CHECK(s.expression_max <= 3000);        // nor learns there
+
+    // E and F held together: the first step is undone, nothing repeats,
+    // the border fills and at 1 s the pedal turns off, back to full
+    // expression, forgetting its travel; once until they are released
+    const uint32_t ef = INPUT_BIT(KEY_VELOCITY_DOWN) | INPUT_BIT(KEY_VELOCITY_UP);
+    uint32_t t0 = pedal_at + 1000;
+    uint8_t velocity = s.midi_velocity;
+    tick(INPUT_BIT(KEY_VELOCITY_DOWN), t0);
+    CHECK(s.midi_velocity == velocity - 1);
+    tick(ef, t0 + 100);
+    app_ui_state(&ui);
+    CHECK(s.midi_velocity == velocity && ui.msg == CONFIG_MSG_EXPRESSION);
+    clear_sent();
+    tick(ef, t0 + 600);
+    app_ui_state(&ui);
+    CHECK(ui.progress == 127 && ui.expression && s.midi_velocity == velocity);
+    tick(ef, t0 + 1100);
+    app_ui_state(&ui);
+    CHECK(!s.expression_enabled && !ui.expression && ui.progress == 0);
+    CHECK(s.expression_min > s.expression_max);
+    tick(ef, t0 + 1101);
+    EXPECT("cc 11 127");
+    tick(ef, t0 + 3000);
+    CHECK(!s.expression_enabled && s.midi_velocity == velocity);
+
+    // On again, it learns afresh on its page, here from the very bottom;
+    // leaving saves it
+    tick(0, t0 + 3100);
+    tick(ef, t0 + 3200);
+    tick(ef, t0 + 4200);
+    CHECK(s.expression_enabled);
+    pedal_at = t0 + 4300;
+    tick(0, pedal_at);
+    CHECK(pedal(0) == -1 && s.expression_min == 0 && s.expression_max == 0);
+    app_ui_state(&ui);
+    CHECK(ui.msg == CONFIG_MSG_EXPRESSION && ui.expression && !ui.expression_ready);
+    CHECK(ui.msg_value == -1);              // On, empty bar
+    CHECK(pedal(1000) == 127 && pedal(0) == 0);
+    pedal_leave();
+    CHECK(app_save_due(pedal_at));
+}
+
 static void test_ui(void) {
     static gfx_t g;
     gfx_init(&g, 128, 32);
@@ -693,6 +863,7 @@ int main(void) {
     test_octave();
     test_app();
     test_battery();
+    test_expression();
     test_ui();
     test_splash();
     if (failures) {

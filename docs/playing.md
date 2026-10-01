@@ -39,6 +39,7 @@ h7 Half-diminished 7th, 7 Seventh) and turn hold on or off (H).
 |--------|-----------------|
 | C / D | Screen brightness, `Contrast` (0–16) |
 | E / F | Velocity (1–127) |
+| E + F held | [Expression pedal](#expression-pedal) on or off |
 | G / A | Sound variation, `Bank` (0–127) |
 | B / C' | Transpose, `Transp.` (−12 to +12) |
 | D' / E' | Debounce, ms (0–50): raise it if pedals play twice |
@@ -49,3 +50,21 @@ The left pedal of each pair turns the setting down, the right one up; hold
 to keep changing. A tap on G', or 3 seconds without touching anything, goes
 back to the map above. From the map, a tap on G' or any other pedal leaves
 config mode and saves.
+
+## Expression pedal
+
+The pedal on EXP1 sends controller 11 (Expression, or `expression.cc`) in
+every mode once turned on.
+
+- **On:** in config mode, hold E and F together for a second. Its page
+  shows `On`; push the pedal from heel to toe and back while the bar
+  follows it. Once it has moved far enough the value shows next to the bar
+  and the pedal starts sending. The travel is saved and kept from then on.
+- **Off:** hold E and F again. It sends 127, so the synth isn't left quiet,
+  and forgets the travel: turning it on again learns it afresh, e.g. for
+  another pedal.
+- The travel is only learnt in config mode, on the map or the pedal's page,
+  so unplugging the pedal while playing can't spoil it. If the pedal
+  doesn't reach 0 or 127, open config mode and push it to its ends again:
+  the travel only ever widens.
+- In config mode, moving the pedal shows its page and value.

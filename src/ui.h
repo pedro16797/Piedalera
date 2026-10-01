@@ -24,6 +24,8 @@ typedef struct {
     uint8_t battery_type;   // battery_t
     uint8_t battery_cells;
     uint16_t battery_mv;
+    bool expression;        // pedal enabled
+    bool expression_ready;  // and its travel learnt
 } ui_state_t;
 
 // Transitions played over the snapshots, and when an input last changed

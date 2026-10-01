@@ -122,6 +122,32 @@ static void config_debounce(ui_state_t *st, uint32_t t) {
     st->msg_value = 5;
 }
 
+// Expression pedal moved in config mode: its value, heel to toe and back
+static void config_expression(ui_state_t *st, uint32_t t) {
+    config_title(st, t);
+    st->msg = CONFIG_MSG_EXPRESSION;
+    st->expression = true;
+    st->expression_ready = true;
+    st->msg_value = t < 1000 ? t * 127 / 1000 : (2000 - t) * 127 / 1000;
+}
+
+// E and F held for a second: the expression pedal turns on, then learns its
+// travel: the bar follows it, and the value shows once it is wide enough
+static void config_expression_toggle(ui_state_t *st, uint32_t t) {
+    config_title(st, t);
+    st->msg = CONFIG_MSG_EXPRESSION;
+    st->msg_value = -1;
+    if (t < 1200) {
+        st->keys = KEY(4) | KEY(5);
+        st->expression = t >= 1000;
+        st->progress = t < 1000 ? t * 255 / 1000 : 0;
+        return;
+    }
+    st->expression = true;
+    st->expression_ready = t >= 2000;
+    st->msg_value = t < 1600 ? 127 : t < 2000 ? (2000 - t) * 127 / 400 : (t - 2000) * 127 / 400;
+}
+
 // Brightness left untouched: the border fills in the last second, then the map
 static void config_idle(ui_state_t *st, uint32_t t) {
     config_title(st, t);
@@ -183,6 +209,8 @@ static const scene_t SCENES[] = {
     { "config-velocity",   0,    0,  config_velocity, NULL },
     { "config-transpose",  0,    0,  config_transpose, NULL },
     { "config-debounce",   0,    0,  config_debounce, NULL },
+    { "config-expression", 2000, 5,  config_expression, NULL },
+    { "config-expression-toggle", 2400, 5, config_expression_toggle, NULL },
     { "config-idle",       3500, 10, config_idle, NULL },
     { "config-hold",       1200, 30, config_hold, NULL },
     { "config-bootsel",    0,    0,  config_bootsel, NULL },

@@ -14,6 +14,7 @@ add_executable(piedalera
     src/config_mode.c
     src/debounce.c
     src/display.c
+    src/expression.c
     src/gfx.c
     src/input.c
     src/keyboard.c

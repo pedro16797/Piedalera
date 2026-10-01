@@ -3,12 +3,14 @@
 #include "app.h"
 #include "battery.h"
 #include "config_mode.h"
+#include "expression.h"
 #include "keyboard.h"
+#include "midi.h"
 #include "notes.h"
 #include "octave.h"
 
-// Octave changes are saved once the octave stays put this long
-#define OCTAVE_SAVE_DELAY_MS 5000
+// Octave and pedal travel changes are saved once they stay put this long
+#define SAVE_DELAY_MS 5000
 
 static settings_t *settings;
 static bool config;
@@ -20,6 +22,7 @@ static uint32_t pressed;    // last debounced inputs, for the screen
 static uint8_t progress;    // of the current key hold, for the screen
 static uint32_t input_at;   // last time an input was held or released
 static uint32_t battery_mv; // filtered, 0 until the first reading
+static bool expression_on;  // readings coming in since it was enabled
 
 static void request_save(uint32_t now, uint32_t delay) {
     save_pending = true;
@@ -34,6 +37,7 @@ void app_init(settings_t *s) {
     progress = 0;
     input_at = 0;
     battery_mv = 0;
+    expression_on = false;
     save_pending = false;
     notes_init(s->midi_channel - 1);
     notes_panic();
@@ -57,8 +61,18 @@ static uint8_t hold_progress(uint32_t held, uint32_t total) {
     return held >= total ? 255 : held * 255 / total;
 }
 
+// Turned off in config mode: back to full expression, so the synth isn't
+// left quiet
+static void expression_off(void) {
+    if (expression_on && !settings->expression_enabled) {
+        expression_on = false;
+        midi_cc(settings->midi_channel - 1, settings->expression_cc, 127);
+    }
+}
+
 void app_update(const input_state_t *in, uint32_t now) {
     pressed = in->pressed;
+    expression_off();
     if (in->pressed || in->up) {
         input_at = now;
     }
@@ -106,7 +120,7 @@ void app_update(const input_state_t *in, uint32_t now) {
     progress = hold_progress(octave_hold_ms(now), OCTAVE_CONFIG_HOLD_MS);
     switch (event) {
     case OCTAVE_CHANGED:
-        request_save(now, OCTAVE_SAVE_DELAY_MS);
+        request_save(now, SAVE_DELAY_MS);
         break;
     case OCTAVE_TOGGLE_CHORD:
         keyboard_set_chord_mode(!keyboard_chord_mode());
@@ -141,6 +155,8 @@ void app_ui_state(ui_state_t *out) {
     out->config = config;
     out->brightness = settings->display_brightness;
     out->progress = progress;
+    out->expression = settings->expression_enabled;
+    out->expression_ready = expression_ready(settings);
     if (settings->power_battery != BATTERY_NONE && battery_mv) {
         out->battery = true;
         out->battery_type = settings->power_battery;
@@ -160,6 +176,38 @@ void app_battery(uint32_t vsys_mv) {
     uint32_t mv = vsys_mv + settings->power_drop_mv;
     // Average over about 8 readings
     battery_mv = battery_mv ? battery_mv + ((int32_t)mv - (int32_t)battery_mv) / 8 : mv;
+}
+
+void app_expression(uint16_t raw, uint32_t now) {
+    if (!settings->expression_enabled) {
+        return;
+    }
+    if (!expression_on) {
+        expression_on = true;
+        expression_init();
+    }
+    // The travel is only learnt in config mode, on the map or the pedal's
+    // page, so a pedal unplugged while playing can't spoil it
+    int unused;
+    config_msg_t msg = config_mode_msg(&unused);
+    bool learn = config && (msg == CONFIG_MSG_TITLE || msg == CONFIG_MSG_EXPRESSION);
+    uint16_t lo = settings->expression_min, hi = settings->expression_max;
+    int value = expression_update(settings, raw, learn);
+    bool widened = settings->expression_min != lo || settings->expression_max != hi;
+    if (widened) {
+        request_save(now, SAVE_DELAY_MS);
+    }
+    if (value >= 0) {
+        midi_cc(settings->midi_channel - 1, settings->expression_cc, value);
+    }
+    // A fresh travel starting isn't a movement
+    bool moved = value >= 0 || (widened && lo <= hi);
+    if (moved) {
+        input_at = now;
+    }
+    if (config) {
+        config_mode_expression(expression_position(settings), moved, now);
+    }
 }
 
 uint32_t app_idle_ms(uint32_t now) {

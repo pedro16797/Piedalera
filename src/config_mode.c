@@ -1,5 +1,6 @@
 #include "battery.h"
 #include "config_mode.h"
+#include "expression.h"
 #include "midi.h"
 
 typedef enum { BRIGHTNESS, VELOCITY, BANK, TRANSPOSE, DEBOUNCE } target_t;
@@ -27,6 +28,7 @@ static const function_t FUNCTIONS[] = {
 
 #define FUNCTION_COUNT (sizeof(FUNCTIONS) / sizeof(FUNCTIONS[0]))
 #define NO_KEY 0xFF
+#define VELOCITY_KEYS (INPUT_BIT(KEY_VELOCITY_DOWN) | INPUT_BIT(KEY_VELOCITY_UP))
 
 static settings_t *settings;
 static uint32_t next_step[FUNCTION_COUNT];
@@ -36,6 +38,10 @@ static uint32_t exit_down_at;
 static bool exit_to_map;    // G' pressed on a setting's screen
 static uint32_t touched_at; // last time a key was held
 static bool changed;
+static bool pair_held;      // both velocity keys
+static bool pair_done;      // and the pedal toggled
+static uint32_t pair_at;
+static uint8_t velocity_before; // restored when the second one joins
 static config_msg_t msg;
 static int msg_value;
 
@@ -44,6 +50,7 @@ void config_mode_enter(settings_t *s) {
     exit_key = NO_KEY;
     repeating = 0;
     changed = false;
+    pair_held = false;
     msg = CONFIG_MSG_TITLE;
 }
 
@@ -97,6 +104,36 @@ config_result_t config_mode_update(const input_state_t *in, uint32_t now) {
         touched_at = now;
     }
 
+    // Both velocity keys: what the first one changed is undone, nothing
+    // repeats, and after a second the expression pedal turns on or off
+    if (!(in->pressed & ~in->down & VELOCITY_KEYS)) {
+        velocity_before = settings->midi_velocity;
+    }
+    if ((in->pressed & VELOCITY_KEYS) == VELOCITY_KEYS) {
+        down &= ~VELOCITY_KEYS;
+        if (!pair_held) {
+            pair_held = true;
+            pair_done = false;
+            pair_at = now;
+            repeating &= ~VELOCITY_KEYS;
+            settings->midi_velocity = velocity_before;
+            msg = CONFIG_MSG_EXPRESSION;
+            msg_value = -1;
+        }
+        if (!pair_done && now - pair_at >= EXPRESSION_HOLD_MS) {
+            pair_done = true;
+            settings->expression_enabled = !settings->expression_enabled;
+            if (!settings->expression_enabled) {
+                expression_forget(settings);    // maybe another pedal next
+            }
+            changed = true;
+            msg = CONFIG_MSG_EXPRESSION;
+            msg_value = -1;
+        }
+    } else {
+        pair_held = false;
+    }
+
     for (unsigned i = 0; i < FUNCTION_COUNT; i++) {
         const function_t *f = &FUNCTIONS[i];
         uint32_t bit = INPUT_BIT(f->key);
@@ -145,11 +182,28 @@ config_result_t config_mode_update(const input_state_t *in, uint32_t now) {
     return CONFIG_STAY;
 }
 
+void config_mode_expression(int value, bool moved, uint32_t now) {
+    if (moved && msg == CONFIG_MSG_TITLE) {
+        msg = CONFIG_MSG_EXPRESSION;
+    }
+    if (msg == CONFIG_MSG_EXPRESSION) {
+        msg_value = value;
+        if (moved) {
+            touched_at = now;
+        }
+    }
+}
+
 bool config_mode_changed(void) {
     return changed;
 }
 
 bool config_mode_keys(config_msg_t msg, uint8_t *down, uint8_t *up) {
+    if (msg == CONFIG_MSG_EXPRESSION) {
+        *down = KEY_VELOCITY_DOWN;
+        *up = KEY_VELOCITY_UP;
+        return true;
+    }
     if (msg == CONFIG_MSG_BOOTSEL || msg == CONFIG_MSG_BATTERY) {
         *down = *up = msg == CONFIG_MSG_BOOTSEL ? KEY_BOOTSEL : KEY_BATTERY;
         return true;
@@ -170,6 +224,9 @@ uint32_t config_mode_idle_ms(uint32_t now) {
 }
 
 uint32_t config_mode_hold_ms(uint32_t now) {
+    if (pair_held && !pair_done) {
+        return now - pair_at;
+    }
     return exit_key == KEY_BOOTSEL ? now - exit_down_at : 0;
 }
 

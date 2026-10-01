@@ -35,5 +35,8 @@ typedef enum { PULL_NONE, PULL_UP, PULL_DOWN } pull_t;
 void input_init(pull_t pull, bool active_low);
 uint32_t input_read(void);
 
+// Expression pedal position, 12 bits; only at full speed, as power_vsys_mv
+uint16_t input_expression(void);
+
 // Arm (or disarm) every input to wake the chip from dormant when pressed
 void input_wake(bool on);

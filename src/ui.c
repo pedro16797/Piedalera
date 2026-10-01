@@ -29,6 +29,7 @@ static const config_item_t CONFIG_ITEMS[] = {
     [CONFIG_MSG_TRANSPOSE]  = { &SPRITE_TRANSPOSE, "Transp.",  -12,  12 },
     [CONFIG_MSG_DEBOUNCE]   = { &SPRITE_DEBOUNCE,  "Debounce",   0,  50 },
     [CONFIG_MSG_BOOTSEL]    = { &SPRITE_FLASH,     NULL,         0,   0 },
+    [CONFIG_MSG_EXPRESSION] = { &SPRITE_EXPRESSION, "Express.",  0, 127 },
 };
 
 // Value screen: icon, value right-aligned against the name column, then the
@@ -98,7 +99,9 @@ static void config_map(gfx_t *g, const ui_state_t *st, const ui_anim_t *a, uint3
     }
 }
 
-// Config mode while a value changes: its keys, icon, value and a bar
+// Config mode while a value changes: its keys, icon, value and a bar. The
+// expression pedal shows Off, or On while its travel is learnt, with the
+// position so far on the bar.
 static void config_value(gfx_t *g, const ui_state_t *st) {
     const config_item_t *item = &CONFIG_ITEMS[st->msg];
     int x = kb_x(g);
@@ -109,14 +112,21 @@ static void config_value(gfx_t *g, const ui_state_t *st) {
     gfx_blit(g, item->icon, 0, 17);
 
     char text[8];
-    put_int(text, st->msg_value, st->msg == CONFIG_MSG_TRANSPOSE);
+    int value = st->msg_value;
+    if (st->msg == CONFIG_MSG_EXPRESSION && !(st->expression && st->expression_ready)) {
+        put_str(text, st->expression ? "On" : "Off");
+        if (!st->expression || value < 0) {
+            value = item->lo;
+        }
+    } else {
+        put_int(text, value, st->msg == CONFIG_MSG_TRANSPOSE);
+    }
     int chars = 0;
     while (text[chars]) chars++;
     gfx_text_scaled(g, COLUMN_X - chars * 16, 14, text, 2);
 
     gfx_text(g, COLUMN_X, 13, item->name);
-    widget_bar(g, COLUMN_X, 23, g->width - COLUMN_X, 8, st->msg_value,
-               item->lo, item->hi);
+    widget_bar(g, COLUMN_X, 23, g->width - COLUMN_X, 8, value, item->lo, item->hi);
 }
 
 // Battery page (F'): the voltage, the battery type and a bar for the charge

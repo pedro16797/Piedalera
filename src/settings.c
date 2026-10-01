@@ -50,6 +50,11 @@ static const field_t FIELDS[] = {
     N("power.battery",      power_battery,      BATTERY_NAMES, BATTERY_TYPES, BATTERY_LIION),
     F("power.cells",        power_cells,        T_U8,    1,    4,    1),
     F("power.drop_mv",      power_drop_mv,      T_U16,   0, 1000,  300),
+    F("expression.enabled", expression_enabled, T_BOOL,  0,    1,    0),
+    F("expression.cc",      expression_cc,      T_U8,    0,  119,   11),
+    F("expression.invert",  expression_invert,  T_BOOL,  0,    1,    0),
+    F("expression.min",     expression_min,     T_U16,   0, 4095, 4095),
+    F("expression.max",     expression_max,     T_U16,   0, 4095,    0),
 };
 
 #define FIELD_COUNT (sizeof(FIELDS) / sizeof(FIELDS[0]))

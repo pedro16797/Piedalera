@@ -1,5 +1,8 @@
 #include "board.h"
+#include "hardware/adc.h"
 #include "input.h"
+
+#define EXPRESSION_SAMPLES 8
 
 static uint32_t invert;
 
@@ -11,6 +14,7 @@ void input_init(pull_t pull, bool active_low) {
         gpio_set_pulls(pin, pull == PULL_UP, pull == PULL_DOWN);
     }
     invert = active_low ? ~0u : 0;
+    adc_gpio_init(PIN_EXPRESSION);
 }
 
 void input_wake(bool on) {
@@ -30,4 +34,14 @@ uint32_t input_read(void) {
         bits |= ((gpio >> INPUT_PINS[i]) & 1u) << i;
     }
     return bits;
+}
+
+// Average of a few readings, about 20 us; the ADC must be running (power.c)
+uint16_t input_expression(void) {
+    adc_select_input(ADC_EXPRESSION);
+    uint32_t sum = 0;
+    for (int i = 0; i < EXPRESSION_SAMPLES; i++) {
+        sum += adc_read();
+    }
+    return sum / EXPRESSION_SAMPLES;
 }

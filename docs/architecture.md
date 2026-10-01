@@ -25,11 +25,12 @@ the drawing modules also run in the display preview (`tools/preview`).
 | Module          | Core | Host | Does |
 |-----------------|------|------|------|
 | `board.h`       | –    |      | Pin map |
-| `input.c`       | 0    |      | GPIO setup, one read of all inputs |
+| `input.c`       | 0    |      | GPIO setup, one read of all inputs, expression pedal ADC |
 | `debounce.c`    | 0    | ✓    | Per-input debounce |
 | `midi.c`        | 0    |      | UART at 31250 baud, ring buffer drained by the TX interrupt |
 | `power.c`       | 0    |      | 48 MHz system clock, dormant sleep, VSYS reading |
 | `battery.c`     | –    | ✓    | Battery types and discharge curves |
+| `expression.c`  | 0    | ✓    | Expression pedal smoothing, learnt travel, hysteresis |
 | `notes.c`       | 0    | ✓    | Note on/off with a count per note, power-up panic |
 | `keyboard.c`    | 0    | ✓    | Normal and chord mode, chord table |
 | `octave.c`      | 0    | ✓    | Octave buttons, auto-repeat, both-buttons gesture |
@@ -69,14 +70,14 @@ the drawing modules also run in the display preview (`tools/preview`).
 - **Config mode** clamps values and leaves when any other key is released.
   On a setting's screen a G' tap, or 3 s untouched (the last second on the
   border), goes back to the map instead.
-- **Holds:** while both octave buttons or G' are held towards their 1 s
-  action, the snapshot carries the progress and core 1 inverts that share of
-  the screen border, clockwise from the top middle.
+- **Holds:** while both octave buttons, G', or E and F are held towards
+  their 1 s action, the snapshot carries the progress and core 1 inverts
+  that share of the screen border, clockwise from the top middle.
 - **USB flash mode:** G' shows `USB FLASH` after 100 ms and saves the
   settings; at 1 s core 0 waits for any further save and for the full-border
   frame, then calls `reset_usb_boot()`.
-- **Saving** happens after config mode or 5 s after the last octave change,
-  and only when the text differs from what is stored.
+- **Saving** happens after config mode or 5 s after the last octave or
+  pedal travel change, and only when the text differs from what is stored.
 - **Transitions:** core 1 compares each snapshot with the previous one:
   a chord mode toggle shows `CHORD` or `NORMAL` large for 0.8 s, and a new
   octave slides in over 150 ms. Frames are sent every period while one
@@ -97,6 +98,20 @@ the drawing modules also run in the display preview (`tools/preview`).
   smooths it over about 8 readings. The charge comes from a per-cell
   discharge curve for `power.battery`. Battery changes in the snapshot don't
   count as input for dimming.
+- **Expression pedal:** when enabled, core 0 averages 8 ADC samples of
+  GP28 every scan and smooths them over about 8 scans. The position maps to
+  0–127 within the learnt travel, with a 1/32 dead zone at both ends and
+  ±¾ step of hysteresis; each new value is sent as a CC and counts as input
+  for deep sleep. Nothing is sent until the travel spans 256 counts.
+- **Learning the travel** only happens in config mode, on the map or the
+  pedal's page, never while playing, so a floating unplugged input can't
+  widen it. A fresh travel (min above max) starts at the first reading;
+  after that it widens whenever the reading goes 8 counts past it, and is
+  saved 5 s after it stops changing. Widening it or a new value opens the
+  page from the map and keeps it open; the page shows the position within
+  the travel so far, then the value once it is wide enough. Holding E and
+  F for 1 s toggles the pedal, undoing any velocity change the first key
+  made; turning it off sends 127 and resets the travel to min 4095, max 0.
 - **Idle:** with no snapshot change for `display.dim_s` the contrast drops
   to a quarter, and after `display.off_s` the panel sleeps (0xAE) until the
   next change.

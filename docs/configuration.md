@@ -40,9 +40,21 @@ saved to the same place.
 | `power.battery`      | li-ion  | none / alkaline / nimh / li-ion | Battery type, for the charge shown in config mode (li-ion also covers LiPo); `none` on a power supply |
 | `power.cells`        | 1       | 1–4                | Cells in series (e.g. 1 for an 18650, 3 for 3×AA) |
 | `power.drop_mv`      | 300     | 0–1000             | Voltage lost in the board's supply diode, added back to the reading; adjust if the voltage shown differs from a multimeter |
+| `expression.enabled` | false   | true / false       | Expression pedal on EXP1 in use; also toggled by holding E + F in config mode |
+| `expression.cc`      | 11      | 0–119              | Controller it sends (11 Expression, 7 Volume) |
+| `expression.invert`  | false   | true / false       | Reverse the pedal, if heel down sends 127 |
+| `expression.min`     | 4095    | 0–4095             | Lowest reading of the pedal's travel; learnt in config mode |
+| `expression.max`     | 0       | 0–4095             | Highest reading; `min` above `max` means not learnt yet |
 
 Octave `n` puts C on MIDI note `12 * (n + 1) + transpose`. Missing keys take
 the default.
+
+The expression pedal's travel (`min` and `max`) is learnt in config mode:
+after turning it on there, push it from heel to toe while its page shows.
+It sends nothing until it is learnt, so a pedal enabled here needs one
+visit to config mode: move it on the map and its page opens. Turning it off
+in config mode forgets the travel, and so does installing a settings file,
+unless the file carries the pedal's own `min` and `max`.
 
 ## Flash format
 

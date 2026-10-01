@@ -17,6 +17,10 @@ void app_ui_state(ui_state_t *out);
 // A new VSYS reading; the battery voltage and charge follow it smoothly
 void app_battery(uint32_t vsys_mv);
 
+// A new expression pedal reading (12-bit): sends its controller when the
+// value changes, if enabled; a learnt wider travel is saved like the octave
+void app_expression(uint16_t raw, uint32_t now_ms);
+
 // Time since an input was last held or released
 uint32_t app_idle_ms(uint32_t now_ms);
 
@@ -28,5 +32,5 @@ bool app_bootsel(void);
 bool app_save_pending(void);
 
 // True when changed settings should be written now: right after config
-// mode, or once the octave has stayed put for a while
+// mode, or once the octave or pedal travel has stayed put for a while
 bool app_save_due(uint32_t now_ms);
