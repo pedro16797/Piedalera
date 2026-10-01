@@ -88,12 +88,13 @@ the drawing modules also run in the display preview (`tools/preview`).
   pending settings, asks core 1 to turn the display off and park, flushes
   MIDI, moves the clocks onto the crystal, stops the PLL and the ring
   oscillator and puts the crystal to sleep (dormant). The ring oscillator
-  restarts on waking, since a watchdog reboot (USB flash mode) doesn't reset
-  it and needs it to start again. A press edge on any input wakes it; the clocks
-  come back at 48 MHz and the scan picks up the press, which plays as
-  usual, a few ms late. The timer stands still while dormant, so after
-  waking core 0 waits 100 ms for a press before sleeping again. If core 1
-  doesn't park within 200 ms, core 0 tries again a second later.
+  restarts on waking, as a watchdog reboot (USB flash mode) needs it. A
+  press edge on any input wakes it; the clocks come back at 48 MHz and the
+  press plays a few ms late. The wake edge isn't debounced, so noise on a
+  pedal cable can wake it too: the timer stands still while dormant, so
+  core 0 waits 100 ms for a press before sleeping again, and core 1 keeps
+  the screen off until the snapshot shows input. If core 1 doesn't park
+  within 200 ms, core 0 tries again a second later.
 - **Battery:** once a second at full speed, core 0 averages 16 ADC
   samples of VSYS/3 (GPIO29), adds `power.drop_mv` for the supply diode and
   smooths it over about 8 readings. The charge comes from a per-cell
@@ -126,7 +127,9 @@ the drawing modules also run in the display preview (`tools/preview`).
   next change.
 - **Display:** frames go out as one DMA transfer of I2C commands at
   400 kHz (about 12 ms for 128×32), only when the snapshot changes. A
-  missing display is retried every 500 ms.
+  missing display is retried every 500 ms. After a failed transfer (e.g.
+  noise on the bus) the panel is set up again without turning it off,
+  since off and on again it stays dark for about 100 ms.
 - **Splash:** 50 frames at 20 fps from sprites stored as one 32-bit mask per
   column, starting once the display answers and ending early if the UI
   changes. A host test pins every frame to `assets/splash/reference.gif`.

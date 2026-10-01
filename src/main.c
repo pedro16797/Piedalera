@@ -66,6 +66,7 @@ static void core1_main(void) {
     bool redraw = true;
     bool animated = false;  // last frame was mid-transition
     bool asleep = false;
+    bool woken = false;     // out of deep sleep, with no input since
     int sent_contrast = -1;
     uint32_t retry_at = 0;
 
@@ -108,6 +109,7 @@ static void core1_main(void) {
         }
         if (fresh) {
             ui_anim_update(&anim, &st, now);
+            woken &= ui_idle_ms(&anim, now) != 0;
         }
 
         // Deep sleep: screen off, then wait here while the clocks stop
@@ -121,6 +123,7 @@ static void core1_main(void) {
                 tight_loop_contents();
             }
             parked = false;
+            woken = true;
             next = get_absolute_time();
             continue;
         }
@@ -132,8 +135,8 @@ static void core1_main(void) {
                 continue;
             }
             retry_at = now + DISPLAY_RETRY_MS;
-            if (!display_init(settings.display_height,
-                              settings.display_col_offset)) {
+            uint8_t c = sent_contrast >= 0 ? sent_contrast : settings.display_brightness;
+            if (!display_init(settings.display_height, settings.display_col_offset, c)) {
                 sleep_until(next);
                 continue;
             }
@@ -161,9 +164,10 @@ static void core1_main(void) {
         }
 
         // Without input for a while the screen dims, then sleeps; any input
-        // changes the snapshot and wakes it
+        // changes the snapshot and wakes it. Out of deep sleep it stays off
+        // until then, as noise on an input can wake the Pico too.
         uint32_t idle = ui_idle_ms(&anim, now);
-        bool off = settings.display_off_s && idle >= settings.display_off_s * 1000u;
+        bool off = woken || (settings.display_off_s && idle >= settings.display_off_s * 1000u);
         bool dim = settings.display_dim_s && idle >= settings.display_dim_s * 1000u;
         uint8_t contrast = dim ? st.brightness / DIM_DIVISOR : st.brightness;
         if (off != asleep) {

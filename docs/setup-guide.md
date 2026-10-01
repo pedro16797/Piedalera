@@ -67,6 +67,6 @@ like the firmware. What each setting does: [configuration](configuration.md).
 | No drive appears | Try another USB cable; hold BOOTSEL *before* plugging in. |
 | The synth plays nothing | The MIDI cable must go from the pedalboard's MIDI OUT to the synth's MIDI IN, and `midi.channel` must match the synth. |
 | The screen is dark | It only gets power from the power supply, not from USB. |
-| A pedal plays twice | Raise `keys.debounce_ms`, or use D'/E' in config mode. |
+| A pedal plays twice, or notes sound on their own | Raise `keys.debounce_ms` (5 is the default), or use D'/E' in config mode. |
 
 Next: [what each pedal does](playing.md).

@@ -45,7 +45,7 @@ h7 Half-diminished 7th, 7 Seventh) and turn hold on or off (H).
 | E + F held | [Expression pedal](#expression-pedal) on or off |
 | G / A | Sound variation, `Bank` (0–127) |
 | B / C' | Transpose, `Transp.` (−12 to +12) |
-| D' / E' | Debounce, ms (0–50): raise it if pedals play twice |
+| D' / E' | Debounce, ms (0–50): raise it if pedals play twice or notes sound on their own |
 | F' | Battery voltage, type and charge, or `External power` (with `power.battery` set) |
 | G' held | USB flash mode, to install new firmware |
 

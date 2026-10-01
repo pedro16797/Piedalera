@@ -7,7 +7,9 @@
 
 // SSD1305 over I2C, frames sent by DMA so core 1 can draw the next one
 // meanwhile. Returns false if the display doesn't answer (e.g. unpowered).
-bool display_init(uint8_t height, uint8_t col_offset);
+// Called again after a failed transfer, it sets the panel up without
+// turning it off, so the picture stays.
+bool display_init(uint8_t height, uint8_t col_offset, uint8_t contrast);
 
 // Waits for the previous frame, then starts sending this one
 void display_send(const gfx_t *g, uint8_t contrast);
