@@ -639,7 +639,7 @@ static void test_expression(void) {
 
     // E and F held together: the first step is undone, nothing repeats,
     // the border fills and at 1 s the pedal turns off, back to full
-    // expression; once until they are released
+    // expression, forgetting its travel; once until they are released
     const uint32_t ef = INPUT_BIT(KEY_VELOCITY_DOWN) | INPUT_BIT(KEY_VELOCITY_UP);
     uint32_t t0 = pedal_at + 1000;
     uint8_t velocity = s.midi_velocity;
@@ -655,18 +655,20 @@ static void test_expression(void) {
     tick(ef, t0 + 1100);
     app_ui_state(&ui);
     CHECK(!s.expression_enabled && !ui.expression && ui.progress == 0);
+    CHECK(s.expression_min > s.expression_max);
     tick(ef, t0 + 1101);
     EXPECT("cc 11 127");
     CHECK(pedal(500) == -1);
     tick(ef, t0 + 3000);
     CHECK(!s.expression_enabled && s.midi_velocity == velocity);
 
-    // And on again, starting afresh; leaving saves it
+    // And on again, learning the travel afresh; leaving saves it
     tick(0, t0 + 3100);
     tick(ef, t0 + 3200);
     tick(ef, t0 + 4200);
     CHECK(s.expression_enabled);
-    CHECK(pedal(2000) > 0);                 // sent again
+    CHECK(pedal(2000) == -1 && s.expression_min == 2000 && s.expression_max == 2000);
+    CHECK(pedal(2500) == 127 && pedal(2000) == 0);
     tick(0, pedal_at);
     tick(INPUT_BIT(1), pedal_at + 100);
     tick(0, pedal_at + 200);

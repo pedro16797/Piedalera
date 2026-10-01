@@ -106,7 +106,8 @@ the drawing modules also run in the display preview (`tools/preview`).
   hysteresis, and each new value is sent as a CC and counts as input for
   deep sleep. In config mode a new value shows its page from the map.
   Holding E and F for 1 s there toggles it, undoing the velocity step the
-  first key made; turning it off sends 127.
+  first key made; turning it off sends 127 and resets the travel to
+  min 4095, max 0, so it is learnt again from the next reading.
 - **Idle:** with no snapshot change for `display.dim_s` the contrast drops
   to a quarter, and after `display.off_s` the panel sleeps (0xAE) until the
   next change.

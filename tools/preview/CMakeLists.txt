@@ -12,6 +12,7 @@ add_executable(preview
     preview.c
     ${SRC}/battery.c
     ${SRC}/config_mode.c
+    ${SRC}/expression.c
     ${SRC}/gfx.c
     ${SRC}/keyboard.c
     ${SRC}/notes.c

@@ -12,6 +12,9 @@
 
 void expression_init(void);
 
+// Forget the learnt travel, so it is learnt again from the next reading
+void expression_forget(settings_t *s);
+
 // A new 12-bit reading, every scan. Returns the new value, or -1 if it
 // hasn't changed. Widens s->expression_min / max when the pedal goes past
 // them.

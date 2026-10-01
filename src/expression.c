@@ -12,6 +12,11 @@ void expression_init(void) {
     value = -1;
 }
 
+void expression_forget(settings_t *s) {
+    s->expression_min = 4095;
+    s->expression_max = 0;
+}
+
 int expression_update(settings_t *s, uint16_t raw) {
     uint32_t in = raw * 16u + 1;    // + 1: never 0 once read
     filtered = filtered ? filtered + ((int32_t)in - (int32_t)filtered) / SMOOTHING : in;

@@ -34,7 +34,8 @@ typedef enum {
 // With a battery set up, this key (F') shows its charge and voltage
 #define KEY_BATTERY         17
 
-// Holding both velocity keys (E and F) turns the expression pedal on or off
+// Holding both velocity keys (E and F) turns the expression pedal on or off;
+// off also forgets its travel
 #define KEY_VELOCITY_DOWN   4
 #define KEY_VELOCITY_UP     5
 #define EXPRESSION_HOLD_MS  BOOTSEL_HOLD_MS

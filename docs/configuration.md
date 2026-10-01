@@ -44,14 +44,15 @@ saved to the same place.
 | `expression.cc`      | 11      | 0–119              | Controller it sends (11 Expression, 7 Volume) |
 | `expression.invert`  | false   | true / false       | Reverse the pedal, if heel down sends 127 |
 | `expression.min`     | 4095    | 0–4095             | Lowest reading of the pedal's travel; learnt as you play |
-| `expression.max`     | 0       | 0–4095             | Highest reading; with `min` above `max` the travel is learnt from scratch |
+| `expression.max`     | 0       | 0–4095             | Highest reading; with `min` above `max` the travel is learnt from scratch, as after turning it off |
 
 Octave `n` puts C on MIDI note `12 * (n + 1) + transpose`. Missing keys take
 the default.
 
-The expression pedal learns its travel as it moves: after plugging one in,
-push it from heel to toe once. Installing a settings file relearns it, unless
-the file carries the `min` and `max` of the pedal.
+The expression pedal learns its travel as it moves: after turning it on,
+push it from heel to toe once. Turning it off in config mode forgets the
+travel, and so does installing a settings file, unless the file carries the
+`min` and `max` of the pedal.
 
 ## Flash format
 

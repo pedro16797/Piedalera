@@ -1,5 +1,6 @@
 #include "battery.h"
 #include "config_mode.h"
+#include "expression.h"
 #include "midi.h"
 
 typedef enum { BRIGHTNESS, VELOCITY, BANK, TRANSPOSE, DEBOUNCE } target_t;
@@ -122,6 +123,9 @@ config_result_t config_mode_update(const input_state_t *in, uint32_t now) {
         if (!pair_done && now - pair_at >= EXPRESSION_HOLD_MS) {
             pair_done = true;
             settings->expression_enabled = !settings->expression_enabled;
+            if (!settings->expression_enabled) {
+                expression_forget(settings);    // maybe another pedal next
+            }
             changed = true;
             msg = CONFIG_MSG_EXPRESSION;
             msg_value = -1;

@@ -53,9 +53,13 @@ config mode and saves.
 
 ## Expression pedal
 
-Turn it on in config mode by holding E and F together for a second (again
-to turn it off). The pedal on EXP1 then sends controller 11 (Expression, or
-`expression.cc`) in every mode; turning it off sends 127, so the synth
-isn't left quiet. After plugging in a new pedal, push it from heel to toe
-once so it learns its travel; it sends nothing until it has moved a little.
-In config mode, moving it shows its value.
+The pedal on EXP1 sends controller 11 (Expression, or `expression.cc`) in
+every mode once turned on.
+
+- **On:** in config mode, hold E and F together for a second. Then push the
+  pedal from heel to toe once so it learns its travel; it sends nothing
+  until it has moved a little. The travel is remembered from then on.
+- **Off:** hold E and F again. It sends 127, so the synth isn't left quiet,
+  and forgets the travel: turning it on again learns it afresh, e.g. for
+  another pedal.
+- In config mode, moving the pedal shows its value.

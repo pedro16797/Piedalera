@@ -15,7 +15,8 @@ for battery use: charge monitoring, idle dimming, screen off and deep sleep.
 - [ ] No watchdog resets in normal use, including settings saves and deep sleep
 - [ ] Battery voltage against a multimeter (`power.drop_mv`), also on a W board
 - [ ] Expression pedal: no CC sent while it stands still, the full 0–127
-  after one sweep, and the learnt travel kept after a power cycle
+  after one sweep, the learnt travel kept after a power cycle and learnt
+  again after turning it off and on
 
 ## Next
 
