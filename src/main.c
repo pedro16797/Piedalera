@@ -63,6 +63,7 @@ static void core1_main(void) {
     ui_anim_t anim = { 0 };
     uint32_t seen = 0;
     bool redraw = true;
+    bool animated = false;  // last frame was mid-transition
     bool asleep = false;
     int sent_contrast = -1;
     uint32_t retry_at = 0;
@@ -174,7 +175,10 @@ static void core1_main(void) {
             continue;
         }
 
-        if (seen && (redraw || contrast != sent_contrast || ui_anim_running(&anim, now))) {
+        // One more frame once a transition ends, so it isn't left mid-way
+        bool animating = ui_anim_running(&anim, now);
+        if (seen && (redraw || contrast != sent_contrast || animating || animated)) {
+            animated = animating;
             ui_render(&gfx, &st, &anim, now);
             display_send(&gfx, contrast);
             sent_contrast = contrast;
@@ -296,7 +300,7 @@ int main(void) {
         }
         if (now - battery_at >= BATTERY_READ_MS) {
             battery_at = now;
-            app_battery(power_vsys_mv());
+            app_battery(power_vsys_mv(), power_vbus());
         }
 
         app_ui_state(&ui);

@@ -89,22 +89,36 @@ static void column(gfx_t *g, int x, int y, uint16_t bits) {
     }
 }
 
-void gfx_text_scaled(gfx_t *g, int x, int y, const char *str, int scale) {
-    gfx_text_spaced(g, x, y, str, scale, 8 * scale);
-}
-
-void gfx_text_spaced(gfx_t *g, int x, int y, const char *str, int scale, int advance) {
+// Scaled text drawing only rows top to bottom - 1
+static void spaced(gfx_t *g, int x, int y, const char *str, int scale, int advance,
+                   int top, int bottom) {
     for (; *str && x < g->width; str++, x += advance) {
         uint16_t cols[8];
         glyph(*str, cols);
         for (int i = 0; i < 8; i++) {
             for (int bit = 0; bit < 9; bit++) {
-                if (cols[i] >> bit & 1) {
-                    gfx_fill(g, x + i * scale, y + bit * scale, scale, scale, true);
+                int y0 = y + bit * scale, y1 = y0 + scale;
+                y0 = y0 < top ? top : y0;
+                y1 = y1 > bottom ? bottom : y1;
+                if ((cols[i] >> bit & 1) && y0 < y1) {
+                    gfx_fill(g, x + i * scale, y0, scale, y1 - y0, true);
                 }
             }
         }
     }
+}
+
+void gfx_text_scaled(gfx_t *g, int x, int y, const char *str, int scale) {
+    spaced(g, x, y, str, scale, 8 * scale, 0, g->height);
+}
+
+void gfx_text_scaled_clipped(gfx_t *g, int x, int y, const char *str, int scale,
+                             int top, int bottom) {
+    spaced(g, x, y, str, scale, 8 * scale, top, bottom);
+}
+
+void gfx_text_spaced(gfx_t *g, int x, int y, const char *str, int scale, int advance) {
+    spaced(g, x, y, str, scale, advance, 0, g->height);
 }
 
 int gfx_text_ink(gfx_t *g, int x, int y, const char *str, int scale, int gap) {

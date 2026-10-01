@@ -17,6 +17,13 @@ const char *battery_label(uint8_t type) {
     return LABELS[type < BATTERY_TYPES ? type : BATTERY_NONE];
 }
 
+bool battery_external(uint8_t type, uint8_t cells, uint32_t mv) {
+    if (type == BATTERY_NONE || type >= BATTERY_TYPES) {
+        return false;
+    }
+    return mv > cells * CURVES[type][0] + (uint32_t)BATTERY_EXTERNAL_MV;
+}
+
 uint8_t battery_level(uint8_t type, uint8_t cells, uint32_t mv) {
     if (type == BATTERY_NONE || type >= BATTERY_TYPES || cells == 0) {
         return 0;

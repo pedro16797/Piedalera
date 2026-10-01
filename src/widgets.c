@@ -59,13 +59,14 @@ static void white_outline(gfx_t *g, int x, int y, int h, int black_h, int key) {
     #undef IN_SHAPE
 }
 
-// Keys are outlines, filled while pressed, which keeps most of the OLED dark
+// White keys are lit and become outlines while pressed; black keys are dark
+// notches, lit while pressed
 void widget_keyboard(gfx_t *g, int x, int y, int h, uint32_t pressed,
-                     uint32_t marked) {
+                     uint32_t marked, uint32_t primary) {
     int black_h = h * 3 / 5;
     for (int key = 0; key < 20; key++) {
-        if (WHITE_INDEX[key] >= 0 && (pressed & (1u << key))) {
-            gfx_fill(g, x + WHITE_INDEX[key] * WIDGET_KEY_STEP, y, widget_key_width(key), h, true);
+        if (WHITE_INDEX[key] >= 0 && !(pressed & (1u << key))) {
+            gfx_fill(g, widget_key_x(x, key), y, widget_key_width(key), h, true);
         }
     }
     for (int key = 0; key < 20; key++) {
@@ -77,11 +78,11 @@ void widget_keyboard(gfx_t *g, int x, int y, int h, uint32_t pressed,
         gfx_fill(g, kx - 1, y, BLACK_W + 2, black_h + 1, false);
         if (pressed & (1u << key)) {
             gfx_fill(g, kx, y, BLACK_W, black_h, true);
-        } else if (marked & (1u << key)) {
-            dotted(g, kx, y, BLACK_W, black_h, true);
-        } else {
+        } else if (primary & (1u << key)) {
             gfx_fill(g, kx, y, BLACK_W, black_h, true);
             gfx_fill(g, kx + 1, y + 1, BLACK_W - 2, black_h - 2, false);
+        } else if (marked & (1u << key)) {
+            dotted(g, kx, y, BLACK_W, black_h, true);
         }
     }
     for (int key = 0; key < 20; key++) {
@@ -90,12 +91,16 @@ void widget_keyboard(gfx_t *g, int x, int y, int h, uint32_t pressed,
         }
         int kx = widget_key_x(x, key), w = widget_key_width(key);
         bool down = pressed & (1u << key);
-        if (!down) {
+        if (down) {
             white_outline(g, x, y, h, black_h, key);
         }
-        // Chord tones: dots below the notches, lit or dark to contrast
-        if (marked & (1u << key)) {
-            dotted(g, kx + 1, y + black_h + 2, w - 2, h - black_h - 3, !down);
+        // Marks below the notches, dark or lit to contrast: solid for the
+        // primary key, dotted for the rest
+        int my = y + black_h + (down ? 2 : 1), mh = y + h - 1 - my;
+        if (primary & (1u << key)) {
+            gfx_fill(g, kx + 1, my, w - 2, mh, down);
+        } else if (marked & (1u << key)) {
+            dotted(g, kx + 1, my, w - 2, mh, down);
         }
     }
 }
@@ -192,10 +197,19 @@ void widget_hold_border(gfx_t *g, uint8_t progress) {
     }
 }
 
-void widget_battery(gfx_t *g, int x, int y, uint8_t level, bool warn) {
+void widget_battery(gfx_t *g, int x, int y, uint8_t level, bool warn, bool external) {
     gfx_fill(g, x + 1, y, 3, 1, true);                          // cap
     gfx_fill(g, x, y + 1, WIDGET_BATTERY_W, WIDGET_BATTERY_H - 1, true);
     gfx_fill(g, x + 1, y + 2, WIDGET_BATTERY_W - 2, WIDGET_BATTERY_ROWS, false);
+    if (external) {
+        // Full, with a dark lightning bolt
+        gfx_fill(g, x + 1, y + 2, WIDGET_BATTERY_W - 2, WIDGET_BATTERY_ROWS, true);
+        gfx_fill(g, x + 3, y + 3, 1, 1, false);
+        gfx_fill(g, x + 2, y + 4, 1, 3, false);
+        gfx_fill(g, x + 1, y + 5, 3, 1, false);
+        gfx_fill(g, x + 1, y + 7, 1, 1, false);
+        return;
+    }
     // Solid charge; any charge left shows a row
     int rows = (level * WIDGET_BATTERY_ROWS + 254) / 255;
     gfx_fill(g, x + 1, y + 2 + WIDGET_BATTERY_ROWS - rows, WIDGET_BATTERY_W - 2, rows, true);

@@ -148,11 +148,6 @@ uint32_t keyboard_marks(void) {
         return 0;
     }
     uint32_t marks = 0;
-    for (int i = 0; i < 7; i++) {
-        if (SELECTOR[i] == chord) {
-            marks |= INPUT_BIT(12 + i);
-        }
-    }
     if (sounding_root != NO_KEY) {
         const chord_t *c = &CHORDS[chord_notes_type];
         for (int i = 0; i < c->count; i++) {

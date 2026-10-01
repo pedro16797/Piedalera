@@ -14,3 +14,6 @@ void power_dormant(void);
 // VSYS in mV, read through the Pico's divider on GPIO29; only at full speed,
 // since the ADC is clocked by the USB PLL
 uint32_t power_vsys_mv(void);
+
+// USB plugged in, on boards that sense VBUS on a GPIO (not the W ones)
+bool power_vbus(void);

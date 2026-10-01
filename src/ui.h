@@ -24,6 +24,7 @@ typedef struct {
     uint8_t battery_type;   // battery_t
     uint8_t battery_cells;
     uint16_t battery_mv;
+    bool battery_external;  // running from USB or another supply instead
     bool expression;        // pedal enabled
     bool expression_ready;  // and its travel learnt
 } ui_state_t;
@@ -35,6 +36,8 @@ typedef struct {
     uint32_t mode_at;       // chord mode toggled: banner
     uint32_t octave_at;     // octave changed: the number slides
     uint8_t octave_from;
+    uint32_t value_at;      // config value changed: the same
+    int16_t value_from;
     bool started;
 } ui_anim_t;
 

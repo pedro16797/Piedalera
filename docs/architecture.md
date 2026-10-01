@@ -80,8 +80,9 @@ the drawing modules also run in the display preview (`tools/preview`).
   pedal travel change, and only when the text differs from what is stored.
 - **Transitions:** core 1 compares each snapshot with the previous one:
   a chord mode toggle shows `CHORD` or `NORMAL` large for 0.8 s, and a new
-  octave slides in over 150 ms. Frames are sent every period while one
-  runs.
+  octave or config value (not the expression pedal's) slides in over
+  150 ms. Frames are sent every period while one runs, and once more when
+  it ends.
 - **Clock:** 48 MHz from the USB PLL; the system PLL stays off.
 - **Deep sleep:** after `power.sleep_s` without input, core 0 writes any
   pending settings, asks core 1 to turn the display off and park, flushes
@@ -96,8 +97,10 @@ the drawing modules also run in the display preview (`tools/preview`).
 - **Battery:** once a second at full speed, core 0 averages 16 ADC
   samples of VSYS/3 (GPIO29), adds `power.drop_mv` for the supply diode and
   smooths it over about 8 readings. The charge comes from a per-cell
-  discharge curve for `power.battery`. Battery changes in the snapshot don't
-  count as input for dimming.
+  discharge curve for `power.battery`; readings don't count as input for
+  dimming. USB power is VBUS on GPIO24 (not on W boards, where it is behind
+  the wireless chip) or a voltage 300 mV above full charge. While playing,
+  the low-battery `!` doesn't blink, so it doesn't keep frames coming.
 - **Expression pedal:** when enabled, core 0 averages 8 ADC samples of
   GP28 every scan and smooths them over about 8 scans. The position maps to
   0–127 within the learnt travel, with a 1/32 dead zone at both ends and

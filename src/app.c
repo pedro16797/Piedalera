@@ -22,6 +22,7 @@ static uint32_t pressed;    // last debounced inputs, for the screen
 static uint8_t progress;    // of the current key hold, for the screen
 static uint32_t input_at;   // last time an input was held or released
 static uint32_t battery_mv; // filtered, 0 until the first reading
+static bool vbus;           // USB plugged in, where the board can tell
 static bool expression_on;  // readings coming in since it was enabled
 
 static void request_save(uint32_t now, uint32_t delay) {
@@ -37,6 +38,7 @@ void app_init(settings_t *s) {
     progress = 0;
     input_at = 0;
     battery_mv = 0;
+    vbus = false;
     expression_on = false;
     save_pending = false;
     notes_init(s->midi_channel - 1);
@@ -162,8 +164,10 @@ void app_ui_state(ui_state_t *out) {
         out->battery_type = settings->power_battery;
         out->battery_cells = settings->power_cells;
         out->battery_mv = (battery_mv + 5) / 10 * 10;     // calmer on screen
-        out->battery_level = battery_level(settings->power_battery, settings->power_cells,
-                                           out->battery_mv);
+        out->battery_external = vbus || battery_external(settings->power_battery,
+                                                         settings->power_cells, out->battery_mv);
+        out->battery_level = out->battery_external ? 255 :
+            battery_level(settings->power_battery, settings->power_cells, out->battery_mv);
     }
     if (config) {
         int value;
@@ -172,7 +176,8 @@ void app_ui_state(ui_state_t *out) {
     }
 }
 
-void app_battery(uint32_t vsys_mv) {
+void app_battery(uint32_t vsys_mv, bool usb) {
+    vbus = usb;
     uint32_t mv = vsys_mv + settings->power_drop_mv;
     // Average over about 8 readings
     battery_mv = battery_mv ? battery_mv + ((int32_t)mv - (int32_t)battery_mv) / 8 : mv;

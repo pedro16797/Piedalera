@@ -248,7 +248,7 @@ static void test_hold(void) {
     keyboard_press(KEY_HOLD, 3);
     keyboard_release(KEY_HOLD, 3);
     CHECK(keyboard_hold());
-    CHECK(!(keyboard_marks() & INPUT_BIT(KEY_HOLD)));  // shown as HOLD only
+    CHECK(!keyboard_marks());               // type and hold shown as text only
 
     keyboard_press(0, 3);
     keyboard_release(0, 3);
@@ -507,12 +507,20 @@ static void test_battery(void) {
     ui_state_t ui;
     app_ui_state(&ui);
     CHECK(!ui.battery);                     // until the first reading
-    app_battery(3300);
+    app_battery(3300, false);
     app_ui_state(&ui);
     CHECK(ui.battery && ui.battery_mv == 3600 && ui.battery_cells == 3);
-    app_battery(3380);
+    app_battery(3380, false);
     app_ui_state(&ui);
-    CHECK(ui.battery_mv == 3610);
+    CHECK(ui.battery_mv == 3610 && !ui.battery_external);
+
+    // Plugged in: USB sensed, or a voltage above full charge
+    app_battery(3380, true);
+    app_ui_state(&ui);
+    CHECK(ui.battery_external && ui.battery_level == 255);
+    CHECK(battery_external(BATTERY_LIION, 1, 4700) && !battery_external(BATTERY_LIION, 1, 4200));
+    CHECK(!battery_external(BATTERY_NONE, 1, 5000));
+    app_battery(3380, false);
 
     // F' opens the battery page from the config map, G' goes back
     const uint32_t both = INPUT_BIT(INPUT_OCT_UP) | INPUT_BIT(INPUT_OCT_DOWN);
@@ -717,16 +725,31 @@ static void test_ui(void) {
     gfx_init(&g, 128, 32);
     int kx = (128 - WIDGET_KEYS_WIDTH) / 2;
 
-    // Keyboard on top: keys are outlines that wrap around the black keys,
-    // filled while pressed
+    // Keyboard on top; a pressed white key is an outline that wraps around
+    // the black key next to it
     ui_state_t st = { .octave = 3, .keys = 1u << 0, .root = -1 };
     ui_render(&g, &st, NULL, 0);
-    CHECK(pixel(&g, kx + 3, 9));                        // C, pressed
-    CHECK(pixel(&g, kx + 10, 9) && !pixel(&g, kx + 13, 9));  // D outline
+    CHECK(pixel(&g, kx, 0) && pixel(&g, kx, 11));      // C outline
+    CHECK(!pixel(&g, kx + 3, 9));                       // C inside
+    CHECK(pixel(&g, kx + 12, 9));                       // D, not pressed
     int notch = widget_key_x(kx, 1);                    // Db
-    CHECK(pixel(&g, notch, 3) && !pixel(&g, notch + 1, 3));  // its outline
+    CHECK(pixel(&g, notch - 2, 3));                     // outline beside it
+    CHECK(pixel(&g, notch - 1, 8));                     // and below it
     CHECK(!pixel(&g, notch - 1, 3));                    // margin stays dark
-    CHECK(pixel(&g, notch + 4, 3) && pixel(&g, notch + 2, 8));  // D wraps it
+
+    // On hold the root's mark is solid, the other notes' dotted
+    st = (ui_state_t){ .octave = 3, .chord_mode = true, .chord = 2, .root = 0,
+                       .hold = true, .marks = 0x891 };
+    ui_render(&g, &st, NULL, 0);
+    CHECK(!pixel(&g, kx + 1, 8) && !pixel(&g, kx + 2, 8));       // C
+    CHECK(!pixel(&g, kx + 21, 8) && pixel(&g, kx + 22, 8));      // E
+    st.root = 3;
+    st.marks = 0x891 << 3;
+    ui_render(&g, &st, NULL, 0);
+    notch = widget_key_x(kx, 3);                        // Eb: an outline
+    CHECK(pixel(&g, notch, 3) && !pixel(&g, notch + 1, 3) && pixel(&g, notch + 2, 3));
+    notch = widget_key_x(kx, 10);                       // Bb: dotted
+    CHECK(pixel(&g, notch, 0) && !pixel(&g, notch + 1, 0));
 
     // Chord mode: chord line and octave line under the keyboard
     st = (ui_state_t){ .octave = 3, .chord_mode = true, .chord = 2, .root = 0,
@@ -776,6 +799,24 @@ static void test_ui(void) {
     CHECK(lit(&g, 64, 23, 72, 32) && !lit(&g, 64, 14, 72, 23));
     CHECK(ui_idle_ms(&a, 5000) == 2000);
 
+    // A setting's value slides the same way, clipped to its rows, but the
+    // expression pedal's doesn't
+    st = (ui_state_t){ .config = true, .msg = CONFIG_MSG_VELOCITY, .msg_value = 95,
+                       .root = -1 };
+    ui_anim_update(&a, &st, 6000);
+    st.msg_value = 96;
+    ui_anim_update(&a, &st, 6100);
+    CHECK(ui_anim_running(&a, 6100) && !ui_anim_running(&a, 6100 + UI_SLIDE_MS));
+    ui_render(&g, &st, &a, 6175);
+    CHECK(lit(&g, 32, 14, 64, 23) && lit(&g, 32, 23, 64, 32));  // old above, new below
+    ui_render(&g, &st, &a, 6100 + UI_SLIDE_MS);
+    CHECK(!lit(&g, 32, 30, 64, 32));                    // settled
+    st.msg = CONFIG_MSG_EXPRESSION;
+    ui_anim_update(&a, &st, 6300);
+    st.msg_value = 50;
+    ui_anim_update(&a, &st, 6400);
+    CHECK(!ui_anim_running(&a, 6400));
+
     // Battery page: voltage left of the column, type above the charge bar
     st = (ui_state_t){ .config = true, .msg = CONFIG_MSG_BATTERY, .root = -1, .battery = true,
                        .battery_level = 128, .battery_mv = 4120, .battery_type = BATTERY_LIION,
@@ -783,11 +824,24 @@ static void test_ui(void) {
     ui_render(&g, &st, NULL, 0);
     CHECK(lit(&g, 0, 14, 64, 28) && lit(&g, 64, 13, 128, 21) && pixel(&g, 64, 23));
 
-    // Battery: only on the config map, filling from the bottom; nearly empty
+    // Battery while playing: in the bottom right corner, HOLD beside it
+    st = (ui_state_t){ .octave = 3, .root = -1, .battery = true, .battery_level = 255,
+                       .chord_mode = true, .hold = true };
+    ui_render(&g, &st, NULL, 0);
+    CHECK(pixel(&g, 122, 30) && pixel(&g, 126, 23) && !lit(&g, 122, 13, 127, 21));
+    CHECK(!lit(&g, 121, 21, 122, 32) && lit(&g, 88, 23, 120, 32));
+    st.battery_external = true;                         // full, a dark bolt
+    ui_render(&g, &st, NULL, 0);
+    CHECK(pixel(&g, 123, 23) && pixel(&g, 125, 29) && !pixel(&g, 124, 25));
+    st.battery_external = false;
+    st.battery_level = 10;
+    ui_anim_t c = { 0 };
+    ui_anim_update(&c, &st, 0);
+    CHECK(!ui_anim_running(&c, 0));                     // "!" steady
+
+    // On the config map, under F', filling from the bottom; nearly empty
     // it blinks an exclamation mark, so frames keep coming
     st = (ui_state_t){ .octave = 3, .root = -1, .battery = true, .battery_level = 255 };
-    ui_render(&g, &st, NULL, 0);
-    CHECK(!lit(&g, 100, 13, 114, 32));                  // not while playing
     st.config = true;
     ui_render(&g, &st, NULL, 0);
     CHECK(lit(&g, 107, 19, 110, 21));                   // full to the top

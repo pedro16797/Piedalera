@@ -54,19 +54,30 @@ static void chord(ui_state_t *st, uint32_t t) {
     (void)t;
     base(st);
     st->chord_mode = true;
-    st->marks = KEY(13);    // Major selected
 }
 
-// C major 7th sounding with hold; root and chord notes marked
+// Major 7th held on, its root solid and its other notes dotted: C with the
+// pedal still down, C released, then E flat
 static void chord_hold(ui_state_t *st, uint32_t t) {
-    (void)t;
     base(st);
     st->chord_mode = true;
     st->chord = 2;
     st->hold = true;
-    st->root = 0;
-    st->keys = KEY(0);
-    st->marks = KEY(0) | KEY(4) | KEY(7) | KEY(11) | KEY(12);
+    st->root = t < 1200 ? 0 : 3;
+    st->keys = t < 600 ? KEY(0) : 0;
+    st->marks = 0x891u << st->root;     // root, 3rd, 5th, 7th
+}
+
+// On batteries: the charge in the corner, in normal mode, then chord mode
+// with hold, nearly empty
+static void playing_battery(ui_state_t *st, uint32_t t) {
+    if (t < 1000) {
+        normal(st, t);
+    } else {
+        chord_hold(st, 0);
+    }
+    st->battery = true;
+    st->battery_level = t < 1000 ? 200 : 10;
 }
 
 static void config_title(ui_state_t *st, uint32_t t) {
@@ -81,6 +92,19 @@ static void config_battery(ui_state_t *st, uint32_t t) {
     config_title(st, t);
     st->battery = true;
     st->battery_level = t < 2400 ? 255 - t * 255 / 2400 : 10;
+}
+
+// On USB: a bolt in the corner, and on the battery page
+static void playing_usb(ui_state_t *st, uint32_t t) {
+    playing_battery(st, 2000);
+    st->battery_external = true;
+    st->battery_level = 255;
+    if (t >= 500) {
+        st->config = true;
+        st->msg = CONFIG_MSG_BATTERY;
+        st->keys = KEY(17);
+        st->battery_mv = 4980;
+    }
 }
 
 // F' held: the battery page, one Li-ion cell at about half charge
@@ -113,6 +137,22 @@ static void config_transpose(ui_state_t *st, uint32_t t) {
     st->keys = KEY(11);
     st->msg = CONFIG_MSG_TRANSPOSE;
     st->msg_value = -3;
+}
+
+// Velocity stepped up past 99, then down: only changed digits slide
+static void config_velocity_slide(ui_state_t *st, uint32_t t) {
+    static const uint8_t STEPS[] = { 98, 99, 100, 99 };
+    config_velocity(st, t);
+    st->msg_value = STEPS[(t / 300) % 4];
+    st->keys = t / 300 % 4 < 3 ? KEY(5) : KEY(4);
+}
+
+// Transpose stepped across zero and back
+static void config_transpose_slide(ui_state_t *st, uint32_t t) {
+    config_transpose(st, t);
+    static const int8_t STEPS[] = { -1, 0, 1, 0 };
+    st->msg_value = STEPS[(t / 300) % 4];
+    st->keys = t / 300 % 4 < 2 ? KEY(12) : KEY(11);
 }
 
 static void config_debounce(ui_state_t *st, uint32_t t) {
@@ -201,13 +241,17 @@ static const scene_t SCENES[] = {
     { "mode-banner",       2400, 10, mode_banner, NULL },
     { "octave-shift",      800,  40, octave_shift, NULL },
     { "chord",             0,    0,  chord, NULL },
-    { "chord-hold",        0,    0,  chord_hold, NULL },
+    { "chord-hold",        1800, 5,  chord_hold, NULL },
+    { "playing-battery",   3000, 2,  playing_battery, NULL },
+    { "playing-usb",       1000, 2,  playing_usb, NULL },
     { "config",            0,    0,  config_title, NULL },
     { "config-battery",    4000, 5,  config_battery, NULL },
     { "config-battery-page", 0,  0,  config_battery_page, NULL },
     { "config-brightness", 0,    0,  config_brightness, NULL },
     { "config-velocity",   0,    0,  config_velocity, NULL },
     { "config-transpose",  0,    0,  config_transpose, NULL },
+    { "config-velocity-slide", 1200, 40, config_velocity_slide, NULL },
+    { "config-transpose-slide", 1200, 40, config_transpose_slide, NULL },
     { "config-debounce",   0,    0,  config_debounce, NULL },
     { "config-expression", 2000, 5,  config_expression, NULL },
     { "config-expression-toggle", 2400, 5, config_expression_toggle, NULL },
@@ -350,7 +394,7 @@ static void blit_centred(gfx_t *g, const sprite_t *s, int x, int y) {
 static void diagram_normal(gfx_t *g) {
     static const char *const NOTES[12] = { "C", "D", "E", "F", "G", "A", "B", "C", "D", "E", "F", "G" };
     gfx_clear(g);
-    widget_keyboard(g, KB_X, 0, DIAGRAM_KB_H, 0, 0);
+    widget_keyboard(g, KB_X, 0, DIAGRAM_KB_H, 0, 0, 0);
     for (int key = 0, n = 0; key < 20; key++) {
         if (is_white(key)) {
             key_label(g, 0, key, NOTES[n++], 0);
@@ -375,7 +419,7 @@ static void diagram_chord(gfx_t *g) {
     static const char *const LABELS[8] = { "M7", "M", "m7", "m", "d7", "h7", "7", "H" };
     int kb_y = 6;
     gfx_clear(g);
-    widget_keyboard(g, KB_X, kb_y, DIAGRAM_KB_H, 0, 0);
+    widget_keyboard(g, KB_X, kb_y, DIAGRAM_KB_H, 0, 0, 0);
     // Chord types and hold on the upper eight keys; labels under neighbouring
     // white keys alternate rows, as they are as wide as the keys
     for (int key = 12, white = 0; key < 20; key++) {

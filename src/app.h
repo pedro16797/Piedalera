@@ -14,8 +14,9 @@ void app_update(const input_state_t *in, uint32_t now_ms);
 
 void app_ui_state(ui_state_t *out);
 
-// A new VSYS reading; the battery voltage and charge follow it smoothly
-void app_battery(uint32_t vsys_mv);
+// A new VSYS reading, and whether USB is plugged in (false if the board
+// can't tell); the battery voltage and charge follow it smoothly
+void app_battery(uint32_t vsys_mv, bool usb);
 
 // A new expression pedal reading (12-bit): sends its controller when the
 // value changes, if enabled; a learnt wider travel is saved like the octave

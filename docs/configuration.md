@@ -37,7 +37,7 @@ saved to the same place.
 | `keys.pull`          | none    | up / down / none   | Internal pull resistor on the inputs |
 | `keys.debounce_ms`   | 5       | 0–50               | Time an input must be stable to count |
 | `power.sleep_s`      | 600     | 0–7200             | Seconds without input before deep sleep (screen off, Pico stopped until a press); 0 never |
-| `power.battery`      | li-ion  | none / alkaline / nimh / li-ion | Battery type, for the charge shown in config mode (li-ion also covers LiPo); `none` on a power supply |
+| `power.battery`      | li-ion  | none / alkaline / nimh / li-ion | Battery type, for the charge shown on screen (li-ion also covers LiPo); `none` on a power supply |
 | `power.cells`        | 1       | 1–4                | Cells in series (e.g. 1 for an 18650, 3 for 3×AA) |
 | `power.drop_mv`      | 300     | 0–1000             | Voltage lost in the board's supply diode, added back to the reading; adjust if the voltage shown differs from a multimeter |
 | `expression.enabled` | false   | true / false       | Expression pedal on EXP1 in use; also toggled by holding E + F in config mode |
