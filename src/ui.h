@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "gfx.h"
+#include "settings.h"
 
 // Snapshot of what the display shows, published by core 0
 typedef struct {
@@ -27,6 +28,8 @@ typedef struct {
     bool battery_external;  // running from USB or another supply instead
     bool expression;        // pedal enabled
     bool expression_ready;  // and its travel learnt
+    uint8_t sound_count;
+    char sound[SOUND_NAME_MAX + 1];    // msg_value's name in config mode, if any
 } ui_state_t;
 
 // Transitions played over the snapshots, and when an input last changed

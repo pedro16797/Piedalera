@@ -23,6 +23,7 @@
 void midi_note_on(uint8_t ch, uint8_t note, uint8_t velocity) { (void)ch; (void)note; (void)velocity; }
 void midi_note_off(uint8_t ch, uint8_t note) { (void)ch; (void)note; }
 void midi_cc(uint8_t ch, uint8_t cc, uint8_t value) { (void)ch; (void)cc; (void)value; }
+void midi_program(uint8_t ch, uint8_t program) { (void)ch; (void)program; }
 
 // Scenes
 
@@ -155,6 +156,18 @@ static void config_transpose_slide(ui_state_t *st, uint32_t t) {
     st->keys = t / 300 % 4 < 2 ? KEY(12) : KEY(11);
 }
 
+// Sounds stepped through from the synth's own: the longest names fit
+static void config_sound(ui_state_t *st, uint32_t t) {
+    static const char *const NAMES[] = { "", "Grand Piano", "Tubular Bells", "Church Organ 3" };
+    config_title(st, t);
+    int n = (t / 600) % 4;
+    st->keys = KEY(9);
+    st->msg = CONFIG_MSG_SOUND;
+    st->msg_value = n;
+    st->sound_count = 12;
+    strcpy(st->sound, NAMES[n]);
+}
+
 static void config_debounce(ui_state_t *st, uint32_t t) {
     config_title(st, t);
     st->keys = KEY(16);
@@ -254,6 +267,7 @@ static const scene_t SCENES[] = {
     { "config-transpose",  0,    0,  config_transpose, NULL },
     { "config-velocity-slide", 1200, 40, config_velocity_slide, NULL },
     { "config-transpose-slide", 1200, 40, config_transpose_slide, NULL },
+    { "config-sound",      2400, 5,  config_sound, NULL },
     { "config-debounce",   0,    0,  config_debounce, NULL },
     { "config-expression", 2000, 5,  config_expression, NULL },
     { "config-expression-toggle", 2400, 5, config_expression_toggle, NULL },

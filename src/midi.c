@@ -80,3 +80,7 @@ void midi_note_off(uint8_t ch, uint8_t note) {
 void midi_cc(uint8_t ch, uint8_t cc, uint8_t value) {
     send(0xB0 | (ch & 0x0F), cc, value, 3);
 }
+
+void midi_program(uint8_t ch, uint8_t program) {
+    send(0xC0 | (ch & 0x0F), program, 0, 2);
+}

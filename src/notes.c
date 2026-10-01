@@ -46,3 +46,9 @@ void notes_panic(void) {
     midi_cc(channel, MIDI_CC_ALL_NOTES_OFF, 0);
     midi_cc(channel, MIDI_CC_ALL_SOUND_OFF, 0);
 }
+
+void notes_sound(const sound_t *sound) {
+    midi_cc(channel, MIDI_CC_BANK_MSB, sound->msb);
+    midi_cc(channel, MIDI_CC_BANK_LSB, sound->lsb);
+    midi_program(channel, sound->program - 1);
+}

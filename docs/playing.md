@@ -43,7 +43,7 @@ h7 Half-diminished 7th, 7 Seventh) and turn hold on or off (H).
 | C / D | Screen brightness, `Contrast` (0–16) |
 | E / F | Velocity (1–127) |
 | E + F held | [Expression pedal](#expression-pedal) on or off |
-| G / A | Sound variation, `Bank` (0–127) |
+| G / A | [Sound](#sounds): the synth's own, or one from the list |
 | B / C' | Transpose, `Transp.` (−12 to +12) |
 | D' / E' | Debounce, ms (0–50): raise it if pedals play twice or notes sound on their own |
 | F' | Battery voltage, type and charge, or `External power` (with `power.battery` set) |
@@ -53,6 +53,15 @@ The left pedal of each pair turns the setting down, the right one up; hold
 to keep changing. A tap on G', or 3 seconds without touching anything, goes
 back to the map above. From the map, a tap on G' or any other pedal leaves
 config mode and saves.
+
+## Sounds
+
+By default the pedalboard leaves the sound to the synth: choose it there.
+G and A in config mode step through the list in
+[`piedalera.ini`](configuration.md#sounds) instead; each sound is sent to
+the synth as soon as it shows, and again at power-up. Going back to
+`Synth's own` sends nothing, so the synth keeps the last sound until it is
+changed there.
 
 ## Expression pedal
 

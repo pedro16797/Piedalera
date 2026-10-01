@@ -85,7 +85,7 @@ static void core1_main(void) {
         uint32_t now = to_ms_since_boot(get_absolute_time());
         core1_beats++;
 
-        settings_t to_save;
+        static settings_t to_save;
         bool save = false;
         bool fresh = false;
         uint32_t irq = spin_lock_blocking(lock);

@@ -4,6 +4,16 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define SOUNDS_MAX      32
+#define SOUND_NAME_MAX  15
+
+// A synth sound: bank select and program change
+typedef struct {
+    uint8_t msb, lsb;
+    uint8_t program;            // 1-128, as synth manuals number them
+    char name[SOUND_NAME_MAX + 1];
+} sound_t;
+
 // Keys and ranges must match tools/config2uf2.py and docs/configuration.md
 typedef struct {
     uint8_t display_width;
@@ -16,7 +26,7 @@ typedef struct {
     uint8_t midi_channel;       // 1-16
     uint8_t midi_velocity;
     int8_t midi_transpose;
-    uint8_t midi_bank_lsb;
+    uint8_t midi_sound;         // 0: the synth's own, else sounds[n - 1]
     uint8_t octave_min;
     uint8_t octave_max;
     uint8_t octave_current;
@@ -34,6 +44,8 @@ typedef struct {
     bool expression_invert;
     uint16_t expression_min;    // travel in ADC counts, learnt as it is played;
     uint16_t expression_max;    // min above max: not learnt yet
+    uint8_t sound_count;        // "sound = msb lsb program name" lines
+    sound_t sounds[SOUNDS_MAX];
 } settings_t;
 
 #define SETTINGS_TEXT_MAX 4096

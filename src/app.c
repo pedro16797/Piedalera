@@ -43,6 +43,9 @@ void app_init(settings_t *s) {
     save_pending = false;
     notes_init(s->midi_channel - 1);
     notes_panic();
+    if (s->midi_sound) {
+        notes_sound(&s->sounds[s->midi_sound - 1]);
+    }
     keyboard_init(s);
     octave_init(s);
 }
@@ -175,6 +178,10 @@ void app_ui_state(ui_state_t *out) {
         int value;
         out->msg = config_mode_msg(&value);
         out->msg_value = value;
+        out->sound_count = settings->sound_count;
+        if (out->msg == CONFIG_MSG_SOUND && value) {
+            memcpy(out->sound, settings->sounds[value - 1].name, sizeof(out->sound));
+        }
     }
 }
 

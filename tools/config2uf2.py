@@ -44,7 +44,7 @@ SCHEMA = {
     "midi.channel":       (1, 16),
     "midi.velocity":      (1, 127),
     "midi.transpose":     (-12, 12),
-    "midi.bank_lsb":      (0, 127),
+    "midi.sound":         (0, 32),
     "octave.min":         (0, 8),
     "octave.max":         (0, 8),
     "octave.current":     (0, 8),
@@ -64,9 +64,14 @@ SCHEMA = {
     "expression.max":     (0, 4095),
 }
 
+# "sound = msb lsb program name" lines, any number up to SOUNDS_MAX
+SOUND_KEY = "sound"
+SOUNDS_MAX = 32
+SOUND_NAME_MAX = 15
+
 
 def parse(path):
-    values = {}
+    values, sounds = {}, []
     with open(path, encoding="utf-8") as f:
         for lineno, raw in enumerate(f, 1):
             line = raw.split("#", 1)[0].strip()
@@ -75,10 +80,34 @@ def parse(path):
             if "=" not in line:
                 raise ValueError(f"{path}:{lineno}: expected 'key = value'")
             key, value = (s.strip() for s in line.split("=", 1))
+            if key == SOUND_KEY:
+                sounds.append(check_sound(value, f"{path}:{lineno}"))
+                continue
             if key not in SCHEMA:
                 raise ValueError(f"{path}:{lineno}: unknown key '{key}'")
             values[key] = check(key, value, f"{path}:{lineno}")
-    return values
+    if len(sounds) > SOUNDS_MAX:
+        raise ValueError(f"{path}: at most {SOUNDS_MAX} sounds")
+    return values, sounds
+
+
+def check_sound(value, where):
+    parts = value.split(None, 3)
+    usage = f"{where}: expected 'sound = msb lsb program name'"
+    if len(parts) < 4:
+        raise ValueError(usage)
+    try:
+        msb, lsb, program = (int(p) for p in parts[:3])
+    except ValueError:
+        raise ValueError(usage) from None
+    name = parts[3]
+    if not (0 <= msb <= 127 and 0 <= lsb <= 127):
+        raise ValueError(f"{where}: bank numbers must be in 0..127")
+    if not 1 <= program <= 128:
+        raise ValueError(f"{where}: program must be in 1..128")
+    if len(name) > SOUND_NAME_MAX or not all(" " <= c <= "~" for c in name):
+        raise ValueError(f"{where}: name must be at most {SOUND_NAME_MAX} plain ASCII characters")
+    return f"{msb} {lsb} {program} {name}"
 
 
 def check(key, value, where):
@@ -100,7 +129,7 @@ def check(key, value, where):
     return value
 
 
-def validate(values):
+def validate(values, sounds):
     if int(values.get("display.height", 32)) % 8:
         raise ValueError("display.height must be a multiple of 8")
     width = int(values.get("display.width", 128))
@@ -112,6 +141,8 @@ def validate(values):
     cur = int(values.get("octave.current", 3))
     if not lo <= cur <= hi:
         raise ValueError("octave.current must be between octave.min and octave.max")
+    if sounds and int(values.get("midi.sound", 0)) > len(sounds):
+        raise ValueError("midi.sound is past the end of the sound list")
 
 
 def to_uf2(data, address, family):
@@ -126,8 +157,9 @@ def to_uf2(data, address, family):
     return bytes(out)
 
 
-def build(values, board):
+def build(values, sounds, board):
     text = HEADER + "".join(f"{k} = {v}\n" for k, v in values.items())
+    text += "".join(f"{SOUND_KEY} = {s}\n" for s in sounds)
     blob = text.encode("ascii") + b"\0"
     if len(blob) > SECTOR_SIZE:
         raise ValueError("settings don't fit in one flash sector")
@@ -152,14 +184,14 @@ def main():
         ap.error("--board is required when naming the output file")
 
     try:
-        values = parse(args.ini)
-        validate(values)
+        values, sounds = parse(args.ini)
+        validate(values, sounds)
         for board in [args.board] if args.board else BOARDS:
             out = args.uf2 or os.path.join(os.path.dirname(os.path.abspath(args.ini)),
                                            f"piedalera-{board}-config.uf2")
             with open(out, "wb") as f:
-                f.write(build(values, board))
-            print(f"{out}: {len(values)} settings for {board}")
+                f.write(build(values, sounds, board))
+            print(f"{out}: {len(values)} settings and {len(sounds)} sounds for {board}")
     except (OSError, ValueError) as e:
         print(f"error: {e}")
         return 1

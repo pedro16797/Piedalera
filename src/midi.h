@@ -9,6 +9,7 @@ void midi_init(void);
 void midi_note_on(uint8_t ch, uint8_t note, uint8_t velocity);
 void midi_note_off(uint8_t ch, uint8_t note);
 void midi_cc(uint8_t ch, uint8_t cc, uint8_t value);
+void midi_program(uint8_t ch, uint8_t program);     // 0-127
 
 // Wait until everything queued is sent, e.g. before a clock change
 void midi_flush(void);
@@ -17,6 +18,3 @@ void midi_flush(void);
 #define MIDI_CC_BANK_LSB        32
 #define MIDI_CC_ALL_SOUND_OFF   120
 #define MIDI_CC_ALL_NOTES_OFF   123
-
-// Roland GM2 melodic bank
-#define MIDI_BANK_MSB_GM2       121

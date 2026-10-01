@@ -25,7 +25,7 @@ typedef struct {
 static const config_item_t CONFIG_ITEMS[] = {
     [CONFIG_MSG_BRIGHTNESS] = { &SPRITE_SUN,       "Contrast",   0,  16 },
     [CONFIG_MSG_VELOCITY]   = { &SPRITE_VELOCITY,  "Velocity",   1, 127 },
-    [CONFIG_MSG_BANK]       = { &SPRITE_BANK,      "Bank",       0, 127 },
+    [CONFIG_MSG_SOUND]      = { &SPRITE_BANK,      "Sound",      0,   0 },
     [CONFIG_MSG_TRANSPOSE]  = { &SPRITE_TRANSPOSE, "Transp.",  -12,  12 },
     [CONFIG_MSG_DEBOUNCE]   = { &SPRITE_DEBOUNCE,  "Debounce",   0,  50 },
     [CONFIG_MSG_BOOTSEL]    = { &SPRITE_FLASH,     NULL,         0,   0 },
@@ -212,6 +212,25 @@ static void config_value(gfx_t *g, const ui_state_t *st, const ui_anim_t *a, uin
     widget_bar(g, COLUMN_X, 23, g->width - COLUMN_X, 8, value, item->lo, item->hi);
 }
 
+// Sound page (G/A): its place in the list and its name, or the synth's own
+#define SOUND_X     20
+
+static void config_sound(gfx_t *g, const ui_state_t *st) {
+    uint8_t k0, k1;
+    config_mode_keys(st->msg, &k0, &k1);
+    widget_keyboard(g, kb_x(g), 0, KB_H_SMALL, st->keys, 0, 0);
+    widget_arc(g, kb_x(g), KB_H_SMALL + 1, k0, k1);
+    gfx_blit(g, &SPRITE_BANK, 0, 17);
+    gfx_text(g, SOUND_X, 13, "Sound");
+    if (st->msg_value) {
+        char text[8];
+        char *end = put_int(put_str(put_int(text, st->msg_value, false), "/"),
+                            st->sound_count, false);
+        gfx_text(g, g->width - (int)(end - text) * 8, 13, text);
+    }
+    gfx_text_ink(g, SOUND_X, 23, st->msg_value ? st->sound : "Synth's own", 1, 1);
+}
+
 // Battery page (F'): the voltage, the battery type and a bar for the charge,
 // or "External power" when running from USB or another supply
 static void config_battery(gfx_t *g, const ui_state_t *st) {
@@ -278,6 +297,8 @@ static void screen(gfx_t *g, const ui_state_t *st, const ui_anim_t *a, uint32_t 
             config_bootsel(g, st);
         } else if (st->msg == CONFIG_MSG_BATTERY) {
             config_battery(g, st);
+        } else if (st->msg == CONFIG_MSG_SOUND) {
+            config_sound(g, st);
         } else {
             config_value(g, st, a, now);
         }
