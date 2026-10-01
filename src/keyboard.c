@@ -3,13 +3,13 @@
 #include "notes.h"
 
 const chord_t CHORDS[CHORD_COUNT] = {
-    { "Major",     3, { 0, 4, 7 } },
-    { "Minor",     3, { 0, 3, 7 } },
-    { "Major 7th", 4, { 0, 4, 7, 11 } },
-    { "Minor 7th", 4, { 0, 3, 7, 10 } },
-    { "Sev (7)",   4, { 0, 4, 7, 10 } },
-    { "Dim 7th",   4, { 0, 3, 6, 9 } },
-    { "H-dim 7th", 4, { 0, 3, 6, 10 } },
+    { "Major",        3, { 0, 4, 7 } },
+    { "Minor",        3, { 0, 3, 7 } },
+    { "Major 7th",    4, { 0, 4, 7, 11 } },
+    { "Minor 7th",    4, { 0, 3, 7, 10 } },
+    { "Dominant 7th", 4, { 0, 4, 7, 10 } },
+    { "Dim 7th",      4, { 0, 3, 6, 9 } },
+    { "Half-dim 7th", 4, { 0, 3, 6, 10 } },
 };
 
 // Chord selected by keys 12-18 (C' to G'b)

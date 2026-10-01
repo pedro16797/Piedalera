@@ -234,6 +234,9 @@ static void test_normal(void) {
 }
 
 static void test_chords(void) {
+    for (int i = 0; i < CHORD_COUNT; i++) {
+        CHECK(strlen(CHORDS[i].name) <= 13);    // "Db " before it fills the line
+    }
     setup();
     keyboard_set_chord_mode(true);
 

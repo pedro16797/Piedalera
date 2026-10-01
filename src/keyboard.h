@@ -11,7 +11,7 @@
 #define KEY_HOLD    19
 
 typedef struct {
-    const char *name;
+    const char *name;   // up to 13 characters, after the root on screen
     uint8_t count;
     uint8_t tones[4];   // semitones above the root, root included
 } chord_t;

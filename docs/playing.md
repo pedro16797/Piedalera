@@ -24,7 +24,7 @@ Each pedal plays its note (C is MIDI 48 at octave 3).
 
 The lower twelve pedals play a chord on their note; the upper eight pick the
 chord type (M7 Major 7th, M Major, m7 Minor 7th, m Minor, d7 Diminished 7th,
-h7 Half-diminished 7th, 7 Seventh) and turn hold on or off (H).
+h7 Half-diminished 7th, 7 Dominant 7th) and turn hold on or off (H).
 
 ![Chord mode](images/keys-chord.png)
 
