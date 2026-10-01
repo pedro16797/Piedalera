@@ -56,10 +56,15 @@ config mode and saves.
 The pedal on EXP1 sends controller 11 (Expression, or `expression.cc`) in
 every mode once turned on.
 
-- **On:** in config mode, hold E and F together for a second. Then push the
-  pedal from heel to toe once so it learns its travel; it sends nothing
-  until it has moved a little. The travel is remembered from then on.
+- **On:** in config mode, hold E and F together for a second. Its page
+  shows `On`; push the pedal from heel to toe and back while the bar
+  follows it. Once it has moved far enough the value shows next to the bar
+  and the pedal starts sending. The travel is saved and kept from then on.
 - **Off:** hold E and F again. It sends 127, so the synth isn't left quiet,
   and forgets the travel: turning it on again learns it afresh, e.g. for
   another pedal.
-- In config mode, moving the pedal shows its value.
+- The travel is only learnt in config mode, on the map or the pedal's page,
+  so unplugging the pedal while playing can't spoil it. If the pedal
+  doesn't reach 0 or 127, open config mode and push it to its ends again:
+  the travel only ever widens.
+- In config mode, moving the pedal shows its page and value.

@@ -18,34 +18,53 @@ void expression_forget(settings_t *s) {
     s->expression_max = 0;
 }
 
-int expression_update(settings_t *s, uint16_t raw) {
+bool expression_ready(const settings_t *s) {
+    return s->expression_max - s->expression_min >= EXPRESSION_MIN_SPAN;
+}
+
+// Position within the travel in 1/16 steps, 0-127 * 16; -1 with no travel.
+// A little dead zone at both ends, so 0 and 127 are always reached.
+static int position(const settings_t *s) {
+    int span = s->expression_max - s->expression_min;
+    if (span <= 0) {
+        return -1;
+    }
+    int margin = span / 32;
+    int lo = s->expression_min + margin;
+    span -= 2 * margin;
+    int pos = (filtered - lo * 16) * 127 / span;
+    pos = pos < 0 ? 0 : pos > 127 * 16 ? 127 * 16 : pos;
+    return s->expression_invert ? 127 * 16 - pos : pos;
+}
+
+int expression_position(const settings_t *s) {
+    if (expression_ready(s) && value >= 0) {
+        return value;
+    }
+    int pos = started ? position(s) : -1;
+    return pos < 0 ? -1 : (pos + 8) / 16;
+}
+
+int expression_update(settings_t *s, uint16_t raw, bool learn) {
     int32_t in = raw * 16;
     filtered = started ? filtered + (in - filtered) / SMOOTHING : in;
     started = true;
     int now = filtered / 16;
 
-    // A fresh range (min above max) starts at the first reading
-    if (s->expression_min > s->expression_max) {
-        s->expression_min = s->expression_max = now;
-    } else if (now + SLACK < s->expression_min) {
-        s->expression_min = now;
-    } else if (now > s->expression_max + SLACK) {
-        s->expression_max = now;
+    // A fresh travel (min above max) starts at the first reading
+    if (learn) {
+        if (s->expression_min > s->expression_max) {
+            s->expression_min = s->expression_max = now;
+        } else if (now + SLACK < s->expression_min) {
+            s->expression_min = now;
+        } else if (now > s->expression_max + SLACK) {
+            s->expression_max = now;
+        }
     }
-    int span = s->expression_max - s->expression_min;
-    if (span < EXPRESSION_MIN_SPAN) {
+    if (!expression_ready(s)) {
         return -1;
     }
-
-    // A little dead zone at both ends, so 0 and 127 are always reached
-    int margin = span / 32;
-    int lo = s->expression_min + margin;
-    span -= 2 * margin;
-    int pos = (filtered - lo * 16) * 127 / span;          // 1/16 steps
-    pos = pos < 0 ? 0 : pos > 127 * 16 ? 127 * 16 : pos;
-    if (s->expression_invert) {
-        pos = 127 * 16 - pos;
-    }
+    int pos = position(s);
     if (value >= 0 && pos - value * 16 <= HYSTERESIS && value * 16 - pos <= HYSTERESIS) {
         return -1;
     }

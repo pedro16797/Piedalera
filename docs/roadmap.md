@@ -3,7 +3,7 @@
 Everything the MicroPython firmware did is implemented and running on the
 pedalboard, plus a keyboard screen, start-up animation, mode and octave
 transitions, a debounce setting, USB flash mode and a MIDI panic from
-config mode, a watchdog, an expression pedal that learns its travel, and
+config mode, a watchdog, an expression pedal calibrated in config mode, and
 for battery use: charge monitoring, idle dimming, screen off and deep sleep.
 
 ## To check on the hardware
@@ -15,8 +15,9 @@ for battery use: charge monitoring, idle dimming, screen off and deep sleep.
 - [ ] No watchdog resets in normal use, including settings saves and deep sleep
 - [ ] Battery voltage against a multimeter (`power.drop_mv`), also on a W board
 - [ ] Expression pedal: no CC sent while it stands still, the full 0–127
-  after one sweep, the learnt travel kept after a power cycle and learnt
-  again after turning it off and on
+  after one sweep on its page, the travel kept after a power cycle and
+  after unplugging it while playing, and learnt again after turning it off
+  and on
 
 ## Next
 

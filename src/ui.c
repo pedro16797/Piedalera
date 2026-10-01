@@ -100,7 +100,8 @@ static void config_map(gfx_t *g, const ui_state_t *st, const ui_anim_t *a, uint3
 }
 
 // Config mode while a value changes: its keys, icon, value and a bar. The
-// expression pedal shows On or Off until it moves.
+// expression pedal shows Off, or On while its travel is learnt, with the
+// position so far on the bar.
 static void config_value(gfx_t *g, const ui_state_t *st) {
     const config_item_t *item = &CONFIG_ITEMS[st->msg];
     int x = kb_x(g);
@@ -112,9 +113,11 @@ static void config_value(gfx_t *g, const ui_state_t *st) {
 
     char text[8];
     int value = st->msg_value;
-    if (st->msg == CONFIG_MSG_EXPRESSION && (!st->expression || value < 0)) {
+    if (st->msg == CONFIG_MSG_EXPRESSION && !(st->expression && st->expression_ready)) {
         put_str(text, st->expression ? "On" : "Off");
-        value = item->lo;
+        if (!st->expression || value < 0) {
+            value = item->lo;
+        }
     } else {
         put_int(text, value, st->msg == CONFIG_MSG_TRANSPOSE);
     }

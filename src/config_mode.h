@@ -50,9 +50,9 @@ void config_mode_enter(settings_t *s);
 
 config_result_t config_mode_update(const input_state_t *in, uint32_t now_ms);
 
-// The expression pedal moved to value: shown from the map, and its page
-// stays while it moves. The page shows on or off while msg_value is -1.
-void config_mode_expression(uint8_t value, uint32_t now_ms);
+// The expression pedal's value or position (see expression_position), every
+// reading. Moving it opens its page from the map and keeps the page open.
+void config_mode_expression(int value, bool moved, uint32_t now_ms);
 
 // Whether any setting changed since entering
 bool config_mode_changed(void);

@@ -99,15 +99,19 @@ the drawing modules also run in the display preview (`tools/preview`).
   discharge curve for `power.battery`. Battery changes in the snapshot don't
   count as input for dimming.
 - **Expression pedal:** when enabled, core 0 averages 8 ADC samples of
-  GP28 every scan and smooths them over about 8 scans. The travel widens
-  whenever the reading goes 8 counts past it and is saved 5 s after it
-  stops changing; nothing is sent until it spans 256 counts. The position
-  maps to 0–127 with a 1/32 dead zone at both ends and ±¾ step of
-  hysteresis, and each new value is sent as a CC and counts as input for
-  deep sleep. In config mode a new value shows its page from the map.
-  Holding E and F for 1 s there toggles it, undoing any velocity change
-  the first key made; turning it off sends 127 and resets the travel to
-  min 4095, max 0, so it is learnt again from the next reading.
+  GP28 every scan and smooths them over about 8 scans. The position maps to
+  0–127 within the learnt travel, with a 1/32 dead zone at both ends and
+  ±¾ step of hysteresis; each new value is sent as a CC and counts as input
+  for deep sleep. Nothing is sent until the travel spans 256 counts.
+- **Learning the travel** only happens in config mode, on the map or the
+  pedal's page, never while playing, so a floating unplugged input can't
+  widen it. A fresh travel (min above max) starts at the first reading;
+  after that it widens whenever the reading goes 8 counts past it, and is
+  saved 5 s after it stops changing. Widening it or a new value opens the
+  page from the map and keeps it open; the page shows the position within
+  the travel so far, then the value once it is wide enough. Holding E and
+  F for 1 s toggles the pedal, undoing any velocity change the first key
+  made; turning it off sends 127 and resets the travel to min 4095, max 0.
 - **Idle:** with no snapshot change for `display.dim_s` the contrast drops
   to a quarter, and after `display.off_s` the panel sleeps (0xAE) until the
   next change.

@@ -156,6 +156,7 @@ void app_ui_state(ui_state_t *out) {
     out->brightness = settings->display_brightness;
     out->progress = progress;
     out->expression = settings->expression_enabled;
+    out->expression_ready = expression_ready(settings);
     if (settings->power_battery != BATTERY_NONE && battery_mv) {
         out->battery = true;
         out->battery_type = settings->power_battery;
@@ -185,18 +186,27 @@ void app_expression(uint16_t raw, uint32_t now) {
         expression_on = true;
         expression_init();
     }
+    // The travel is only learnt in config mode, on the map or the pedal's
+    // page, so a pedal unplugged while playing can't spoil it
+    int unused;
+    config_msg_t msg = config_mode_msg(&unused);
+    bool learn = config && (msg == CONFIG_MSG_TITLE || msg == CONFIG_MSG_EXPRESSION);
     uint16_t lo = settings->expression_min, hi = settings->expression_max;
-    int value = expression_update(settings, raw);
-    if (settings->expression_min != lo || settings->expression_max != hi) {
+    int value = expression_update(settings, raw, learn);
+    bool widened = settings->expression_min != lo || settings->expression_max != hi;
+    if (widened) {
         request_save(now, SAVE_DELAY_MS);
     }
-    if (value < 0) {
-        return;
+    if (value >= 0) {
+        midi_cc(settings->midi_channel - 1, settings->expression_cc, value);
     }
-    midi_cc(settings->midi_channel - 1, settings->expression_cc, value);
-    input_at = now;
+    // A fresh travel starting isn't a movement
+    bool moved = value >= 0 || (widened && lo <= hi);
+    if (moved) {
+        input_at = now;
+    }
     if (config) {
-        config_mode_expression(value, now);
+        config_mode_expression(expression_position(settings), moved, now);
     }
 }
 
