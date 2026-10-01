@@ -73,9 +73,9 @@ the drawing modules also run in the display preview (`tools/preview`).
 - **Holds:** while both octave buttons, G', or E and F are held towards
   their 1 s action, the snapshot carries the progress and core 1 inverts
   that share of the screen border, clockwise from the top middle.
-- **USB flash mode:** G' shows `USB FLASH` after 100 ms and saves the
-  settings; at 1 s core 0 waits for any further save and for the full-border
-  frame, then calls `reset_usb_boot()`.
+- **USB flash mode:** G' shows `USB FLASH` and starts the border after
+  200 ms, and saves the settings then; at 1 s core 0 waits for any further
+  save and for the full-border frame, then calls `reset_usb_boot()`.
 - **Saving** happens after config mode or 5 s after the last octave or
   pedal travel change, and only when the text differs from what is stored.
 - **Transitions:** core 1 compares each snapshot with the previous one:
@@ -127,6 +127,6 @@ the drawing modules also run in the display preview (`tools/preview`).
 - **Display:** frames go out as one DMA transfer of I2C commands at
   400 kHz (about 12 ms for 128×32), only when the snapshot changes. A
   missing display is retried every 500 ms.
-- **Splash:** 34 frames at 20 fps from sprites stored as one 32-bit mask per
+- **Splash:** 50 frames at 20 fps from sprites stored as one 32-bit mask per
   column, starting once the display answers and ending early if the UI
   changes. A host test pins every frame to `assets/splash/reference.gif`.

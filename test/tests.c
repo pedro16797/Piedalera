@@ -448,20 +448,20 @@ static void test_app(void) {
     // Holding G' for a second asks for the bootloader
     for (uint32_t t = 20000; t <= 21000; t += 10) tick(both, t);
     tick(0, 21100);
-    // USB FLASH shows after 0.1 s and the settings are saved then; the
-    // reboot comes as the border closes
+    // USB FLASH and the border show after 0.2 s and the settings are saved
+    // then; the reboot comes as the border closes
     tick(INPUT_BIT(KEY_BOOTSEL), 22000);
-    tick(INPUT_BIT(KEY_BOOTSEL), 22099);
+    tick(INPUT_BIT(KEY_BOOTSEL), 22199);
     app_ui_state(&ui);
-    CHECK(ui.msg != CONFIG_MSG_BOOTSEL && !app_save_due(22099));
-    tick(INPUT_BIT(KEY_BOOTSEL), 22100);
+    CHECK(ui.msg != CONFIG_MSG_BOOTSEL && ui.progress == 0 && !app_save_due(22199));
+    tick(INPUT_BIT(KEY_BOOTSEL), 22200);
     app_ui_state(&ui);
     CHECK(ui.msg == CONFIG_MSG_BOOTSEL);
-    CHECK(app_save_due(22100) && !app_save_due(22101));
-    tick(INPUT_BIT(KEY_BOOTSEL), 22250);
-    CHECK(!app_bootsel() && !app_save_due(22250));
+    CHECK(app_save_due(22200) && !app_save_due(22201));
+    tick(INPUT_BIT(KEY_BOOTSEL), 22600);
+    CHECK(!app_bootsel() && !app_save_due(22600));
     app_ui_state(&ui);
-    CHECK(ui.progress == 63);
+    CHECK(ui.progress == 127);
     tick(INPUT_BIT(KEY_BOOTSEL), 23000);
     CHECK(app_bootsel());
     app_ui_state(&ui);
@@ -908,8 +908,11 @@ static const uint32_t SPLASH_REFERENCE[SPLASH_FRAMES] = {
     0x1bb57122, 0xa62bda29, 0x0633cef4, 0x748b2488, 0xd0958f99, 0xfa7ba644,
     0x9669c004, 0x1a4ea9d3, 0xfc291715, 0xd70281a9, 0xc2d66b25, 0x8ff4094f,
     0xeae6c826, 0x50e93764, 0xa47650e2, 0x0a3d51ef, 0x451aa479, 0x1f3e413f,
-    0x2372db1b, 0xc24692c9, 0xc24692c9, 0xc24692c9, 0xc24692c9, 0xd1ae3359,
-    0x335df499, 0xc8c87eb5, 0x27ce0105, 0x4d7705c5,
+    0x2372db1b, 0xc24692c9, 0xc24692c9, 0xc24692c9, 0xc24692c9, 0xc24692c9,
+    0xc24692c9, 0xc24692c9, 0xc24692c9, 0xc24692c9, 0xc24692c9, 0xc24692c9,
+    0xc24692c9, 0xc24692c9, 0xc24692c9, 0xc24692c9, 0xc24692c9, 0xc24692c9,
+    0xc24692c9, 0xc24692c9, 0xc24692c9, 0xd1ae3359, 0x335df499, 0xc8c87eb5,
+    0x27ce0105, 0x4d7705c5,
 };
 
 static uint32_t fnv1a(const uint8_t *p, size_t n) {

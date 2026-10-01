@@ -218,13 +218,15 @@ static void normal_hold(ui_state_t *st, uint32_t t) {
     st->progress = 153;
 }
 
-// G' held for a second: USB FLASH from 0.1 s, reboot when the border closes
+// G' held for a second: USB FLASH and the border from 0.2 s, reboot when
+// the border closes
 static void config_hold(ui_state_t *st, uint32_t t) {
     config_title(st, t);
     st->keys = KEY(19);
-    st->progress = t < 1000 ? t * 255 / 1000 : 255;
-    if (t >= 100) {
+    if (t >= BOOTSEL_SHOW_MS) {
         st->msg = CONFIG_MSG_BOOTSEL;
+        st->progress = t < BOOTSEL_HOLD_MS ? (t - BOOTSEL_SHOW_MS) * 255 /
+                       (BOOTSEL_HOLD_MS - BOOTSEL_SHOW_MS) : 255;
     }
 }
 

@@ -223,11 +223,14 @@ uint32_t config_mode_idle_ms(uint32_t now) {
     return msg == CONFIG_MSG_TITLE ? 0 : now - touched_at;
 }
 
-uint32_t config_mode_hold_ms(uint32_t now) {
+uint32_t config_mode_hold_ms(uint32_t now, uint32_t *total) {
     if (pair_held && !pair_done) {
+        *total = EXPRESSION_HOLD_MS;
         return now - pair_at;
     }
-    return exit_key == KEY_BOOTSEL ? now - exit_down_at : 0;
+    *total = BOOTSEL_HOLD_MS - BOOTSEL_SHOW_MS;
+    uint32_t held = exit_key == KEY_BOOTSEL ? now - exit_down_at : 0;
+    return held > BOOTSEL_SHOW_MS ? held - BOOTSEL_SHOW_MS : 0;
 }
 
 config_msg_t config_mode_msg(int *value) {

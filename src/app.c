@@ -85,7 +85,9 @@ void app_update(const input_state_t *in, uint32_t now) {
     if (config) {
         config_result_t result = config_mode_update(in, now);
         if (result != CONFIG_EXIT) {
-            progress = hold_progress(config_mode_hold_ms(now), BOOTSEL_HOLD_MS);
+            uint32_t total;
+            uint32_t held = config_mode_hold_ms(now, &total);
+            progress = hold_progress(held, total);
             // Last stretch before a setting's screen goes back to the map
             uint32_t idle = config_mode_idle_ms(now);
             if (idle > CONFIG_IDLE_MS - CONFIG_IDLE_BORDER_MS) {
