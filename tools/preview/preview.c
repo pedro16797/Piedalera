@@ -126,7 +126,18 @@ static void config_debounce(ui_state_t *st, uint32_t t) {
 static void config_expression(ui_state_t *st, uint32_t t) {
     config_title(st, t);
     st->msg = CONFIG_MSG_EXPRESSION;
+    st->expression = true;
     st->msg_value = t < 1000 ? t * 127 / 1000 : (2000 - t) * 127 / 1000;
+}
+
+// E and F held for a second: the expression pedal turns on
+static void config_expression_toggle(ui_state_t *st, uint32_t t) {
+    config_title(st, t);
+    st->keys = KEY(4) | KEY(5);
+    st->msg = CONFIG_MSG_EXPRESSION;
+    st->msg_value = -1;
+    st->expression = t >= 1000;
+    st->progress = t < 1000 ? t * 255 / 1000 : 0;
 }
 
 // Brightness left untouched: the border fills in the last second, then the map
@@ -191,6 +202,7 @@ static const scene_t SCENES[] = {
     { "config-transpose",  0,    0,  config_transpose, NULL },
     { "config-debounce",   0,    0,  config_debounce, NULL },
     { "config-expression", 2000, 5,  config_expression, NULL },
+    { "config-expression-toggle", 1400, 10, config_expression_toggle, NULL },
     { "config-idle",       3500, 10, config_idle, NULL },
     { "config-hold",       1200, 30, config_hold, NULL },
     { "config-bootsel",    0,    0,  config_bootsel, NULL },

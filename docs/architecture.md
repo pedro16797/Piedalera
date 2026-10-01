@@ -70,9 +70,9 @@ the drawing modules also run in the display preview (`tools/preview`).
 - **Config mode** clamps values and leaves when any other key is released.
   On a setting's screen a G' tap, or 3 s untouched (the last second on the
   border), goes back to the map instead.
-- **Holds:** while both octave buttons or G' are held towards their 1 s
-  action, the snapshot carries the progress and core 1 inverts that share of
-  the screen border, clockwise from the top middle.
+- **Holds:** while both octave buttons, G', or E and F are held towards
+  their 1 s action, the snapshot carries the progress and core 1 inverts
+  that share of the screen border, clockwise from the top middle.
 - **USB flash mode:** G' shows `USB FLASH` after 100 ms and saves the
   settings; at 1 s core 0 waits for any further save and for the full-border
   frame, then calls `reset_usb_boot()`.
@@ -105,6 +105,8 @@ the drawing modules also run in the display preview (`tools/preview`).
   maps to 0–127 with a 1/32 dead zone at both ends and ±¾ step of
   hysteresis, and each new value is sent as a CC and counts as input for
   deep sleep. In config mode a new value shows its page from the map.
+  Holding E and F for 1 s there toggles it, undoing the velocity step the
+  first key made; turning it off sends 127.
 - **Idle:** with no snapshot change for `display.dim_s` the contrast drops
   to a quarter, and after `display.off_s` the panel sleeps (0xAE) until the
   next change.

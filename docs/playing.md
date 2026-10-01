@@ -43,6 +43,7 @@ h7 Half-diminished 7th, 7 Seventh) and turn hold on or off (H).
 | B / C' | Transpose, `Transp.` (−12 to +12) |
 | D' / E' | Debounce, ms (0–50): raise it if pedals play twice |
 | F' | Battery voltage, type and charge, when `power.battery` is set; the map shows the charge under F' and blinks `!` when nearly empty |
+| E + F held | Expression pedal on or off |
 | G' held | USB flash mode, to install new firmware |
 
 The left pedal of each pair turns the setting down, the right one up; hold
@@ -52,7 +53,9 @@ config mode and saves.
 
 ## Expression pedal
 
-With `expression.enabled` set, the pedal on EXP1 sends controller 11
-(Expression, or `expression.cc`) in every mode. After plugging in a new pedal, push it from heel
-to toe once so it learns its travel; it sends nothing until it has moved a
-little. In config mode, moving it shows its value.
+Turn it on in config mode by holding E and F together for a second (again
+to turn it off). The pedal on EXP1 then sends controller 11 (Expression, or
+`expression.cc`) in every mode; turning it off sends 127, so the synth
+isn't left quiet. After plugging in a new pedal, push it from heel to toe
+once so it learns its travel; it sends nothing until it has moved a little.
+In config mode, moving it shows its value.

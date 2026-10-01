@@ -58,5 +58,5 @@ E' to G' really are on pins 01, 03, 05, 07 in that order.
   Pico 2, avoid `keys.pull = down` (RP2350-E9).
 - For the expression pedal, a 10–50 kΩ linear potentiometer across pins 1
   and 3 with its wiper on pin 2 will do; ~1 kΩ in series and ~100 nF to AGND
-  on the wiper filter noise. Set `expression.enabled = true` once it is
-  connected; a pin left open floats.
+  on the wiper filter noise. It is off until turned on in config mode (see
+  [playing](playing.md)), as a pin left open floats.

@@ -22,6 +22,7 @@ static uint32_t pressed;    // last debounced inputs, for the screen
 static uint8_t progress;    // of the current key hold, for the screen
 static uint32_t input_at;   // last time an input was held or released
 static uint32_t battery_mv; // filtered, 0 until the first reading
+static bool expression_on;  // readings coming in since it was enabled
 
 static void request_save(uint32_t now, uint32_t delay) {
     save_pending = true;
@@ -36,12 +37,12 @@ void app_init(settings_t *s) {
     progress = 0;
     input_at = 0;
     battery_mv = 0;
+    expression_on = false;
     save_pending = false;
     notes_init(s->midi_channel - 1);
     notes_panic();
     keyboard_init(s);
     octave_init(s);
-    expression_init();
 }
 
 // Entering config mode also silences the synth, for any note left stuck
@@ -60,8 +61,18 @@ static uint8_t hold_progress(uint32_t held, uint32_t total) {
     return held >= total ? 255 : held * 255 / total;
 }
 
+// Turned off in config mode: back to full expression, so the synth isn't
+// left quiet
+static void expression_off(void) {
+    if (expression_on && !settings->expression_enabled) {
+        expression_on = false;
+        midi_cc(settings->midi_channel - 1, settings->expression_cc, 127);
+    }
+}
+
 void app_update(const input_state_t *in, uint32_t now) {
     pressed = in->pressed;
+    expression_off();
     if (in->pressed || in->up) {
         input_at = now;
     }
@@ -144,6 +155,7 @@ void app_ui_state(ui_state_t *out) {
     out->config = config;
     out->brightness = settings->display_brightness;
     out->progress = progress;
+    out->expression = settings->expression_enabled;
     if (settings->power_battery != BATTERY_NONE && battery_mv) {
         out->battery = true;
         out->battery_type = settings->power_battery;
@@ -166,6 +178,13 @@ void app_battery(uint32_t vsys_mv) {
 }
 
 void app_expression(uint16_t raw, uint32_t now) {
+    if (!settings->expression_enabled) {
+        return;
+    }
+    if (!expression_on) {
+        expression_on = true;
+        expression_init();
+    }
     uint16_t lo = settings->expression_min, hi = settings->expression_max;
     int value = expression_update(settings, raw);
     if (settings->expression_min != lo || settings->expression_max != hi) {

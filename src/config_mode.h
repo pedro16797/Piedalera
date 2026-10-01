@@ -34,6 +34,11 @@ typedef enum {
 // With a battery set up, this key (F') shows its charge and voltage
 #define KEY_BATTERY         17
 
+// Holding both velocity keys (E and F) turns the expression pedal on or off
+#define KEY_VELOCITY_DOWN   4
+#define KEY_VELOCITY_UP     5
+#define EXPRESSION_HOLD_MS  BOOTSEL_HOLD_MS
+
 // A setting's screen goes back to the map after this long untouched; the
 // last CONFIG_IDLE_BORDER_MS show on the border
 #define CONFIG_IDLE_MS          3000
@@ -45,7 +50,7 @@ void config_mode_enter(settings_t *s);
 config_result_t config_mode_update(const input_state_t *in, uint32_t now_ms);
 
 // The expression pedal moved to value: shown from the map, and its page
-// stays while it moves
+// stays while it moves. The page shows on or off while msg_value is -1.
 void config_mode_expression(uint8_t value, uint32_t now_ms);
 
 // Whether any setting changed since entering
@@ -53,12 +58,13 @@ bool config_mode_changed(void);
 
 config_msg_t config_mode_msg(int *value);
 
-// How long G' has been held towards USB flash mode, 0 if not
+// How long G' has been held towards USB flash mode, or E and F towards the
+// expression toggle; 0 if neither
 uint32_t config_mode_hold_ms(uint32_t now_ms);
 
 // How long a setting's screen has been untouched, 0 on the map
 uint32_t config_mode_idle_ms(uint32_t now_ms);
 
 // Keys that turn a setting down and up (the same key twice for bootsel);
-// false for CONFIG_MSG_TITLE and CONFIG_MSG_EXPRESSION
+// false for CONFIG_MSG_TITLE
 bool config_mode_keys(config_msg_t msg, uint8_t *down, uint8_t *up);

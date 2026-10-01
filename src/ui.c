@@ -99,27 +99,31 @@ static void config_map(gfx_t *g, const ui_state_t *st, const ui_anim_t *a, uint3
     }
 }
 
-// Config mode while a value changes: its keys (none for the expression
-// pedal), icon, value and a bar
+// Config mode while a value changes: its keys, icon, value and a bar. The
+// expression pedal shows On or Off until it moves.
 static void config_value(gfx_t *g, const ui_state_t *st) {
     const config_item_t *item = &CONFIG_ITEMS[st->msg];
     int x = kb_x(g);
     uint8_t a, b;
+    config_mode_keys(st->msg, &a, &b);
     widget_keyboard(g, x, 0, KB_H_SMALL, st->keys, 0);
-    if (config_mode_keys(st->msg, &a, &b)) {
-        widget_arc(g, x, KB_H_SMALL + 1, a, b);
-    }
+    widget_arc(g, x, KB_H_SMALL + 1, a, b);
     gfx_blit(g, item->icon, 0, 17);
 
     char text[8];
-    put_int(text, st->msg_value, st->msg == CONFIG_MSG_TRANSPOSE);
+    int value = st->msg_value;
+    if (st->msg == CONFIG_MSG_EXPRESSION && (!st->expression || value < 0)) {
+        put_str(text, st->expression ? "On" : "Off");
+        value = item->lo;
+    } else {
+        put_int(text, value, st->msg == CONFIG_MSG_TRANSPOSE);
+    }
     int chars = 0;
     while (text[chars]) chars++;
     gfx_text_scaled(g, COLUMN_X - chars * 16, 14, text, 2);
 
     gfx_text(g, COLUMN_X, 13, item->name);
-    widget_bar(g, COLUMN_X, 23, g->width - COLUMN_X, 8, st->msg_value,
-               item->lo, item->hi);
+    widget_bar(g, COLUMN_X, 23, g->width - COLUMN_X, 8, value, item->lo, item->hi);
 }
 
 // Battery page (F'): the voltage, the battery type and a bar for the charge

@@ -40,7 +40,7 @@ saved to the same place.
 | `power.battery`      | li-ion  | none / alkaline / nimh / li-ion | Battery type, for the charge shown in config mode (li-ion also covers LiPo); `none` on a power supply |
 | `power.cells`        | 1       | 1–4                | Cells in series (e.g. 1 for an 18650, 3 for 3×AA) |
 | `power.drop_mv`      | 300     | 0–1000             | Voltage lost in the board's supply diode, added back to the reading; adjust if the voltage shown differs from a multimeter |
-| `expression.enabled` | false   | true / false       | Expression pedal plugged into EXP1 |
+| `expression.enabled` | false   | true / false       | Expression pedal plugged into EXP1; also E + F held in config mode |
 | `expression.cc`      | 11      | 0–119              | Controller it sends (11 Expression, 7 Volume) |
 | `expression.invert`  | false   | true / false       | Reverse the pedal, if heel down sends 127 |
 | `expression.min`     | 4095    | 0–4095             | Lowest reading of the pedal's travel; learnt as you play |

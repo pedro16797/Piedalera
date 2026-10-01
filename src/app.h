@@ -18,7 +18,7 @@ void app_ui_state(ui_state_t *out);
 void app_battery(uint32_t vsys_mv);
 
 // A new expression pedal reading (12-bit): sends its controller when the
-// value changes; a learnt wider travel is saved like the octave
+// value changes, if enabled; a learnt wider travel is saved like the octave
 void app_expression(uint16_t raw, uint32_t now_ms);
 
 // Time since an input was last held or released

@@ -569,6 +569,10 @@ static void test_expression(void) {
     app_init(&s);
     pedal_at = 0;
 
+    // Off by default
+    CHECK(pedal(1000) == -1);
+    s.expression_enabled = true;
+
     // Nothing until it has moved far enough to know its travel
     CHECK(pedal(1000) == -1);
     CHECK(s.expression_min == 1000 && s.expression_max == 1000);
@@ -612,7 +616,8 @@ static void test_expression(void) {
     app_ui_state(&ui);
     CHECK(ui.msg == CONFIG_MSG_EXPRESSION && ui.msg_value == 127);
     uint8_t down, up;
-    CHECK(!config_mode_keys(CONFIG_MSG_EXPRESSION, &down, &up));
+    CHECK(config_mode_keys(CONFIG_MSG_EXPRESSION, &down, &up) &&
+          down == KEY_VELOCITY_DOWN && up == KEY_VELOCITY_UP);
     for (int i = 0; i < 60; i++) {
         pedal(i & 1 ? 3000 : 2000);
         tick(0, pedal_at);
@@ -631,6 +636,42 @@ static void test_expression(void) {
     pedal(2000);
     app_ui_state(&ui);
     CHECK(ui.msg == CONFIG_MSG_VELOCITY);
+
+    // E and F held together: the first step is undone, nothing repeats,
+    // the border fills and at 1 s the pedal turns off, back to full
+    // expression; once until they are released
+    const uint32_t ef = INPUT_BIT(KEY_VELOCITY_DOWN) | INPUT_BIT(KEY_VELOCITY_UP);
+    uint32_t t0 = pedal_at + 1000;
+    uint8_t velocity = s.midi_velocity;
+    tick(INPUT_BIT(KEY_VELOCITY_DOWN), t0);
+    CHECK(s.midi_velocity == velocity - 1);
+    tick(ef, t0 + 100);
+    app_ui_state(&ui);
+    CHECK(s.midi_velocity == velocity && ui.msg == CONFIG_MSG_EXPRESSION && ui.msg_value == -1);
+    clear_sent();
+    tick(ef, t0 + 600);
+    app_ui_state(&ui);
+    CHECK(ui.progress == 127 && ui.expression && s.midi_velocity == velocity);
+    tick(ef, t0 + 1100);
+    app_ui_state(&ui);
+    CHECK(!s.expression_enabled && !ui.expression && ui.progress == 0);
+    tick(ef, t0 + 1101);
+    EXPECT("cc 11 127");
+    CHECK(pedal(500) == -1);
+    tick(ef, t0 + 3000);
+    CHECK(!s.expression_enabled && s.midi_velocity == velocity);
+
+    // And on again, starting afresh; leaving saves it
+    tick(0, t0 + 3100);
+    tick(ef, t0 + 3200);
+    tick(ef, t0 + 4200);
+    CHECK(s.expression_enabled);
+    CHECK(pedal(2000) > 0);                 // sent again
+    tick(0, pedal_at);
+    tick(INPUT_BIT(1), pedal_at + 100);
+    tick(0, pedal_at + 200);
+    app_ui_state(&ui);
+    CHECK(!ui.config && app_save_due(pedal_at + 200));
 }
 
 static void test_ui(void) {
