@@ -39,11 +39,11 @@ h7 Half-diminished 7th, 7 Seventh) and turn hold on or off (H).
 |--------|-----------------|
 | C / D | Screen brightness, `Contrast` (0–16) |
 | E / F | Velocity (1–127) |
+| E + F held | [Expression pedal](#expression-pedal) on or off |
 | G / A | Sound variation, `Bank` (0–127) |
 | B / C' | Transpose, `Transp.` (−12 to +12) |
 | D' / E' | Debounce, ms (0–50): raise it if pedals play twice |
 | F' | Battery voltage, type and charge, when `power.battery` is set; the map shows the charge under F' and blinks `!` when nearly empty |
-| E + F held | Expression pedal on or off |
 | G' held | USB flash mode, to install new firmware |
 
 The left pedal of each pair turns the setting down, the right one up; hold

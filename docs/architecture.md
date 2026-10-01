@@ -99,14 +99,14 @@ the drawing modules also run in the display preview (`tools/preview`).
   discharge curve for `power.battery`. Battery changes in the snapshot don't
   count as input for dimming.
 - **Expression pedal:** when enabled, core 0 averages 8 ADC samples of
-  GP28 every scan and smooths them over about 8 ms. The travel widens
+  GP28 every scan and smooths them over about 8 scans. The travel widens
   whenever the reading goes 8 counts past it and is saved 5 s after it
   stops changing; nothing is sent until it spans 256 counts. The position
   maps to 0–127 with a 1/32 dead zone at both ends and ±¾ step of
   hysteresis, and each new value is sent as a CC and counts as input for
   deep sleep. In config mode a new value shows its page from the map.
-  Holding E and F for 1 s there toggles it, undoing the velocity step the
-  first key made; turning it off sends 127 and resets the travel to
+  Holding E and F for 1 s there toggles it, undoing any velocity change
+  the first key made; turning it off sends 127 and resets the travel to
   min 4095, max 0, so it is learnt again from the next reading.
 - **Idle:** with no snapshot change for `display.dim_s` the contrast drops
   to a quarter, and after `display.off_s` the panel sleeps (0xAE) until the

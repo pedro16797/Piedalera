@@ -1,14 +1,15 @@
 #include "expression.h"
 
-#define SMOOTHING   8   // readings in the moving average, about 8 ms
+#define SMOOTHING   8   // each reading moves the average 1/8 of the way
 #define SLACK       8   // counts past the travel before it widens
 #define HYSTERESIS  12  // in 1/16 steps: a step and a half wide
 
-static uint32_t filtered;   // ADC counts * 16, 0 until the first reading
+static bool started;
+static int32_t filtered;    // ADC counts * 16
 static int value;           // last returned, -1 if none
 
 void expression_init(void) {
-    filtered = 0;
+    started = false;
     value = -1;
 }
 
@@ -18,15 +19,17 @@ void expression_forget(settings_t *s) {
 }
 
 int expression_update(settings_t *s, uint16_t raw) {
-    uint32_t in = raw * 16u + 1;    // + 1: never 0 once read
-    filtered = filtered ? filtered + ((int32_t)in - (int32_t)filtered) / SMOOTHING : in;
+    int32_t in = raw * 16;
+    filtered = started ? filtered + (in - filtered) / SMOOTHING : in;
+    started = true;
     int now = filtered / 16;
 
     // A fresh range (min above max) starts at the first reading
-    if (now + SLACK < s->expression_min || s->expression_min > s->expression_max) {
+    if (s->expression_min > s->expression_max) {
+        s->expression_min = s->expression_max = now;
+    } else if (now + SLACK < s->expression_min) {
         s->expression_min = now;
-    }
-    if (now > s->expression_max + SLACK) {
+    } else if (now > s->expression_max + SLACK) {
         s->expression_max = now;
     }
     int span = s->expression_max - s->expression_min;
@@ -38,7 +41,7 @@ int expression_update(settings_t *s, uint16_t raw) {
     int margin = span / 32;
     int lo = s->expression_min + margin;
     span -= 2 * margin;
-    int pos = ((int)filtered - lo * 16) * 127 / span;     // 1/16 steps
+    int pos = (filtered - lo * 16) * 127 / span;          // 1/16 steps
     pos = pos < 0 ? 0 : pos > 127 * 16 ? 127 * 16 : pos;
     if (s->expression_invert) {
         pos = 127 * 16 - pos;

@@ -41,7 +41,7 @@ static bool changed;
 static bool pair_held;      // both velocity keys
 static bool pair_done;      // and the pedal toggled
 static uint32_t pair_at;
-static uint8_t velocity_before; // undone when the second one joins
+static uint8_t velocity_before; // restored when the second one joins
 static config_msg_t msg;
 static int msg_value;
 
@@ -104,7 +104,7 @@ config_result_t config_mode_update(const input_state_t *in, uint32_t now) {
         touched_at = now;
     }
 
-    // Both velocity keys: the step the first one made is undone, nothing
+    // Both velocity keys: what the first one changed is undone, nothing
     // repeats, and after a second the expression pedal turns on or off
     if (!(in->pressed & ~in->down & VELOCITY_KEYS)) {
         velocity_before = settings->midi_velocity;

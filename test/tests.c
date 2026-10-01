@@ -557,7 +557,7 @@ static int pedal(uint16_t raw) {
     int cc = -1, value = -1;
     if (sent_count) {
         sscanf(sent[sent_count - 1], "cc %d %d", &cc, &value);
-        CHECK(cc == 11);
+        CHECK(cc == s.expression_cc);
     }
     clear_sent();
     return value;
@@ -602,6 +602,16 @@ static void test_expression(void) {
     CHECK(pedal(3000) == 0);
     CHECK(pedal(500) == 127);
     s.expression_invert = false;
+
+    // A fresh travel learnt from the very bottom, on another controller
+    expression_forget(&s);
+    expression_init();                      // as when turned on again
+    s.expression_cc = 7;
+    CHECK(pedal(0) == -1 && s.expression_min == 0 && s.expression_max == 0);
+    CHECK(pedal(1000) == 127 && pedal(0) == 0);
+    s.expression_cc = 11;
+    s.expression_min = 500;
+    s.expression_max = 3000;
 
     // In config mode, moving it shows its page from the map, which stays
     // while it moves and is left with G' like any other page
