@@ -22,6 +22,7 @@ static uint32_t pressed;    // last debounced inputs, for the screen
 static uint8_t progress;    // of the current key hold, for the screen
 static uint32_t input_at;   // last time an input was held or released
 static uint32_t battery_mv; // filtered, 0 until the first reading
+static bool vbus;           // USB plugged in, where the board can tell
 static bool expression_on;  // readings coming in since it was enabled
 
 static void request_save(uint32_t now, uint32_t delay) {
@@ -37,6 +38,7 @@ void app_init(settings_t *s) {
     progress = 0;
     input_at = 0;
     battery_mv = 0;
+    vbus = false;
     expression_on = false;
     save_pending = false;
     notes_init(s->midi_channel - 1);
@@ -83,7 +85,9 @@ void app_update(const input_state_t *in, uint32_t now) {
     if (config) {
         config_result_t result = config_mode_update(in, now);
         if (result != CONFIG_EXIT) {
-            progress = hold_progress(config_mode_hold_ms(now), BOOTSEL_HOLD_MS);
+            uint32_t total;
+            uint32_t held = config_mode_hold_ms(now, &total);
+            progress = hold_progress(held, total);
             // Last stretch before a setting's screen goes back to the map
             uint32_t idle = config_mode_idle_ms(now);
             if (idle > CONFIG_IDLE_MS - CONFIG_IDLE_BORDER_MS) {
@@ -162,8 +166,10 @@ void app_ui_state(ui_state_t *out) {
         out->battery_type = settings->power_battery;
         out->battery_cells = settings->power_cells;
         out->battery_mv = (battery_mv + 5) / 10 * 10;     // calmer on screen
-        out->battery_level = battery_level(settings->power_battery, settings->power_cells,
-                                           out->battery_mv);
+        out->battery_external = vbus || battery_external(settings->power_battery,
+                                                         settings->power_cells, out->battery_mv);
+        out->battery_level = out->battery_external ? 255 :
+            battery_level(settings->power_battery, settings->power_cells, out->battery_mv);
     }
     if (config) {
         int value;
@@ -172,19 +178,35 @@ void app_ui_state(ui_state_t *out) {
     }
 }
 
-void app_battery(uint32_t vsys_mv) {
+void app_battery(uint32_t vsys_mv, bool usb) {
+    vbus = usb;
     uint32_t mv = vsys_mv + settings->power_drop_mv;
     // Average over about 8 readings
     battery_mv = battery_mv ? battery_mv + ((int32_t)mv - (int32_t)battery_mv) / 8 : mv;
 }
 
-void app_expression(uint16_t raw, uint32_t now) {
+// Readings coming in since it was enabled
+static bool expression_start(void) {
     if (!settings->expression_enabled) {
-        return;
+        return false;
     }
     if (!expression_on) {
         expression_on = true;
         expression_init();
+    }
+    return true;
+}
+
+void app_expression_probe(uint16_t up, uint16_t down) {
+    // Pulled out: back to full expression, so the synth isn't left quiet
+    if (expression_start() && expression_probe(up, down) && !expression_plugged()) {
+        midi_cc(settings->midi_channel - 1, settings->expression_cc, 127);
+    }
+}
+
+void app_expression(uint16_t raw, uint32_t now) {
+    if (!expression_start() || !expression_plugged()) {
+        return;
     }
     // The travel is only learnt in config mode, on the map or the pedal's
     // page, so a pedal unplugged while playing can't spoil it

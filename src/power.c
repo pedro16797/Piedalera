@@ -16,6 +16,9 @@ void power_init(void) {
     set_sys_clock_48mhz();
     adc_init();
     adc_gpio_init(PICO_VSYS_PIN);
+#ifdef PICO_VBUS_PIN
+    gpio_init(PICO_VBUS_PIN);
+#endif
 #if PICO_CYW43_SUPPORTED
     // W boards share the pin with the (unused) wireless chip; its chip select
     // high keeps it off the pin
@@ -33,6 +36,14 @@ uint32_t power_vsys_mv(void) {
     }
     // 12 bits of 3.3 V, and the divider is 1/3
     return sum * 3300 * 3 / (4096 * VSYS_SAMPLES);
+}
+
+bool power_vbus(void) {
+#ifdef PICO_VBUS_PIN
+    return gpio_get(PICO_VBUS_PIN);
+#else
+    return false;   // W boards sense it through the wireless chip, unused
+#endif
 }
 
 void power_dormant(void) {

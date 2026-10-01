@@ -15,5 +15,11 @@ Ideas for future board revisions; the firmware targets the current one.
   optocoupler. USB MIDI needs no hardware.
 - **External USB socket:** a panel-mount extension lets firmware be updated
   from config mode without opening the case.
+- **Expression input:** EXP1's wiper goes straight to GP28. A ~1 kΩ series
+  resistor and a low-capacitance ESD diode to GNDA would absorb the static
+  a plug brings in, and ~1 MΩ to GNDA would hold an empty jack at 0. No
+  capacitor on the board side: it would hide an empty jack from the
+  firmware's plug probe. A switched jack's contact would need a GPIO of its
+  own, and none is free.
 - **3V3_EN:** tied to VSYS but already pulled up in the Pico; left free it
   could take a power switch.

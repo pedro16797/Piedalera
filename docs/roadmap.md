@@ -14,16 +14,27 @@ for battery use: charge monitoring, idle dimming, screen off and deep sleep.
 - [ ] USB flash mode after having been in deep sleep
 - [ ] No watchdog resets in normal use, including settings saves and deep sleep
 - [ ] Battery voltage against a multimeter (`power.drop_mv`), also on a W board
+- [ ] USB power shown on every board (GPIO24 on Pico and Pico 2, the
+  voltage alone on W boards)
 - [ ] Expression pedal: no CC sent while it stands still, the full 0–127
-  after one sweep on its page, the travel kept after a power cycle and
-  after unplugging it while playing, and learnt again after turning it off
-  and on
+  after one sweep on its page, the travel kept after a power cycle, and
+  learnt again after turning it off and on
+- [ ] Expression probe: an empty jack found within a second, a plugged pedal
+  never taken for one at any position, on Pico and Pico 2
+- [ ] The screen no longer going dark for a moment while playing
 
 ## Next
 
 Each in its own pull request:
 
-- [ ] Instrument presets (`instList` in `legacy/Piedalera.py`)
+- [ ] Sound banks: named sounds (bank and program, as `instList` in
+  `legacy/Piedalera.py`) picked from config mode
+- [ ] Mode mode: a third mode where the upper keys pick a musical mode
+  (Ionian, Dorian, Phrygian, Lydian, Mixolydian, Aeolian, Locrian) instead
+  of a chord type
+
+## Later
+
 - [ ] Drumpad link: a second Pico forwards hits from a MIDI drumpad over
   BLE MIDI, and the pedalboard turns them into bass notes, strums or
   arpeggios of the current chord. Needs a W board.
@@ -34,4 +45,6 @@ Each in its own pull request:
 - Changing the bank sends bank select without a program change, which the
   synth may ignore until the next one. Should the firmware send a program
   change too, and the bank at power-up?
+- What the lower keys play in mode mode: the root's diatonic chord, or the
+  scale's notes from the root?
 - DIY expression pedal design.

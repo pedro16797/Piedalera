@@ -28,7 +28,7 @@ typedef enum {
 // for the bootloader. A tap goes back to the map from a setting, and
 // leaves from the map.
 #define KEY_BOOTSEL         19
-#define BOOTSEL_SHOW_MS     100
+#define BOOTSEL_SHOW_MS     200
 #define BOOTSEL_HOLD_MS     1000
 
 // With a battery set up, this key (F') shows its charge and voltage
@@ -59,9 +59,9 @@ bool config_mode_changed(void);
 
 config_msg_t config_mode_msg(int *value);
 
-// How long G' has been held towards USB flash mode, or E and F towards the
-// expression toggle; 0 if neither
-uint32_t config_mode_hold_ms(uint32_t now_ms);
+// How far G' has been held towards USB flash mode since USB FLASH showed,
+// or E and F towards the expression toggle, out of total; 0 if neither
+uint32_t config_mode_hold_ms(uint32_t now_ms, uint32_t *total);
 
 // How long a setting's screen has been untouched, 0 on the map
 uint32_t config_mode_idle_ms(uint32_t now_ms);

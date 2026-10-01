@@ -14,12 +14,18 @@ void app_update(const input_state_t *in, uint32_t now_ms);
 
 void app_ui_state(ui_state_t *out);
 
-// A new VSYS reading; the battery voltage and charge follow it smoothly
-void app_battery(uint32_t vsys_mv);
+// A new VSYS reading, and whether USB is plugged in (false if the board
+// can't tell); the battery voltage and charge follow it smoothly
+void app_battery(uint32_t vsys_mv, bool usb);
 
 // A new expression pedal reading (12-bit): sends its controller when the
 // value changes, if enabled; a learnt wider travel is saved like the octave
+// Readings are ignored until a probe finds a pedal plugged in
 void app_expression(uint16_t raw, uint32_t now_ms);
+
+// Readings with the pin pulled up and down, every EXPRESSION_PROBE_MS while
+// enabled; pulling the pedal out sends 127
+void app_expression_probe(uint16_t up, uint16_t down);
 
 // Time since an input was last held or released
 uint32_t app_idle_ms(uint32_t now_ms);

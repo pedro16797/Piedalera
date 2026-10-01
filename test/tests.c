@@ -248,7 +248,7 @@ static void test_hold(void) {
     keyboard_press(KEY_HOLD, 3);
     keyboard_release(KEY_HOLD, 3);
     CHECK(keyboard_hold());
-    CHECK(!(keyboard_marks() & INPUT_BIT(KEY_HOLD)));  // shown as HOLD only
+    CHECK(!keyboard_marks());               // type and hold shown as text only
 
     keyboard_press(0, 3);
     keyboard_release(0, 3);
@@ -448,20 +448,20 @@ static void test_app(void) {
     // Holding G' for a second asks for the bootloader
     for (uint32_t t = 20000; t <= 21000; t += 10) tick(both, t);
     tick(0, 21100);
-    // USB FLASH shows after 0.1 s and the settings are saved then; the
-    // reboot comes as the border closes
+    // USB FLASH and the border show after 0.2 s and the settings are saved
+    // then; the reboot comes as the border closes
     tick(INPUT_BIT(KEY_BOOTSEL), 22000);
-    tick(INPUT_BIT(KEY_BOOTSEL), 22099);
+    tick(INPUT_BIT(KEY_BOOTSEL), 22199);
     app_ui_state(&ui);
-    CHECK(ui.msg != CONFIG_MSG_BOOTSEL && !app_save_due(22099));
-    tick(INPUT_BIT(KEY_BOOTSEL), 22100);
+    CHECK(ui.msg != CONFIG_MSG_BOOTSEL && ui.progress == 0 && !app_save_due(22199));
+    tick(INPUT_BIT(KEY_BOOTSEL), 22200);
     app_ui_state(&ui);
     CHECK(ui.msg == CONFIG_MSG_BOOTSEL);
-    CHECK(app_save_due(22100) && !app_save_due(22101));
-    tick(INPUT_BIT(KEY_BOOTSEL), 22250);
-    CHECK(!app_bootsel() && !app_save_due(22250));
+    CHECK(app_save_due(22200) && !app_save_due(22201));
+    tick(INPUT_BIT(KEY_BOOTSEL), 22600);
+    CHECK(!app_bootsel() && !app_save_due(22600));
     app_ui_state(&ui);
-    CHECK(ui.progress == 63);
+    CHECK(ui.progress == 127);
     tick(INPUT_BIT(KEY_BOOTSEL), 23000);
     CHECK(app_bootsel());
     app_ui_state(&ui);
@@ -507,12 +507,20 @@ static void test_battery(void) {
     ui_state_t ui;
     app_ui_state(&ui);
     CHECK(!ui.battery);                     // until the first reading
-    app_battery(3300);
+    app_battery(3300, false);
     app_ui_state(&ui);
     CHECK(ui.battery && ui.battery_mv == 3600 && ui.battery_cells == 3);
-    app_battery(3380);
+    app_battery(3380, false);
     app_ui_state(&ui);
-    CHECK(ui.battery_mv == 3610);
+    CHECK(ui.battery_mv == 3610 && !ui.battery_external);
+
+    // Plugged in: USB sensed, or a voltage above full charge
+    app_battery(3380, true);
+    app_ui_state(&ui);
+    CHECK(ui.battery_external && ui.battery_level == 255);
+    CHECK(battery_external(BATTERY_LIION, 1, 4700) && !battery_external(BATTERY_LIION, 1, 4200));
+    CHECK(!battery_external(BATTERY_NONE, 1, 5000));
+    app_battery(3380, false);
 
     // F' opens the battery page from the config map, G' goes back
     const uint32_t both = INPUT_BIT(INPUT_OCT_UP) | INPUT_BIT(INPUT_OCT_DOWN);
@@ -563,6 +571,13 @@ static int pedal(uint16_t raw) {
     return value;
 }
 
+// A few probes of the pin, with a pedal holding it or an empty jack
+static void probe(bool plugged) {
+    for (int i = 0; i < 3; i++) {
+        app_expression_probe(plugged ? 2100 : 4095, plugged ? 1900 : 0);
+    }
+}
+
 // Into config mode with both octave buttons
 static void pedal_config(void) {
     const uint32_t both = INPUT_BIT(INPUT_OCT_UP) | INPUT_BIT(INPUT_OCT_DOWN);
@@ -589,6 +604,17 @@ static void test_expression(void) {
     // Off by default
     CHECK(pedal(1000) == -1);
     s.expression_enabled = true;
+
+    // Until a probe finds a pedal, readings are ignored, even in config
+    // mode where they would be learnt; two probes aren't enough
+    pedal_config();
+    CHECK(pedal(3000) == -1 && s.expression_min > s.expression_max);
+    app_expression_probe(2100, 1900);
+    app_expression_probe(2100, 1900);
+    CHECK(!expression_plugged());
+    app_expression_probe(2100, 1900);
+    CHECK(expression_plugged());
+    pedal_leave();
 
     // Never learnt, it sends nothing and learns nothing while playing
     CHECK(pedal(3000) == -1 && pedal(1000) == -1);
@@ -703,6 +729,7 @@ static void test_expression(void) {
     CHECK(s.expression_enabled);
     pedal_at = t0 + 4300;
     tick(0, pedal_at);
+    probe(true);
     CHECK(pedal(0) == -1 && s.expression_min == 0 && s.expression_max == 0);
     app_ui_state(&ui);
     CHECK(ui.msg == CONFIG_MSG_EXPRESSION && ui.expression && !ui.expression_ready);
@@ -710,6 +737,17 @@ static void test_expression(void) {
     CHECK(pedal(1000) == 127 && pedal(0) == 0);
     pedal_leave();
     CHECK(app_save_due(pedal_at));
+
+    // Pulled out: 127 once, then its noise is ignored and doesn't keep the
+    // board awake; plugged back in, its value is sent again
+    clear_sent();
+    probe(false);
+    EXPECT("cc 11 127");
+    uint32_t idle_from = pedal_at;
+    CHECK(pedal(0) == -1 && pedal(1000) == -1);
+    CHECK(app_idle_ms(pedal_at) >= pedal_at - idle_from);
+    probe(true);
+    CHECK(pedal(500) == 64);
 }
 
 static void test_ui(void) {
@@ -717,16 +755,31 @@ static void test_ui(void) {
     gfx_init(&g, 128, 32);
     int kx = (128 - WIDGET_KEYS_WIDTH) / 2;
 
-    // Keyboard on top: keys are outlines that wrap around the black keys,
-    // filled while pressed
+    // Keyboard on top; a pressed white key is an outline that wraps around
+    // the black key next to it
     ui_state_t st = { .octave = 3, .keys = 1u << 0, .root = -1 };
     ui_render(&g, &st, NULL, 0);
-    CHECK(pixel(&g, kx + 3, 9));                        // C, pressed
-    CHECK(pixel(&g, kx + 10, 9) && !pixel(&g, kx + 13, 9));  // D outline
+    CHECK(pixel(&g, kx, 0) && pixel(&g, kx, 11));      // C outline
+    CHECK(!pixel(&g, kx + 3, 9));                       // C inside
+    CHECK(pixel(&g, kx + 12, 9));                       // D, not pressed
     int notch = widget_key_x(kx, 1);                    // Db
-    CHECK(pixel(&g, notch, 3) && !pixel(&g, notch + 1, 3));  // its outline
+    CHECK(pixel(&g, notch - 2, 3));                     // outline beside it
+    CHECK(pixel(&g, notch - 1, 8));                     // and below it
     CHECK(!pixel(&g, notch - 1, 3));                    // margin stays dark
-    CHECK(pixel(&g, notch + 4, 3) && pixel(&g, notch + 2, 8));  // D wraps it
+
+    // On hold the root's mark is solid, the other notes' dotted
+    st = (ui_state_t){ .octave = 3, .chord_mode = true, .chord = 2, .root = 0,
+                       .hold = true, .marks = 0x891 };
+    ui_render(&g, &st, NULL, 0);
+    CHECK(!pixel(&g, kx + 1, 8) && !pixel(&g, kx + 2, 8));       // C
+    CHECK(!pixel(&g, kx + 21, 8) && pixel(&g, kx + 22, 8));      // E
+    st.root = 3;
+    st.marks = 0x891 << 3;
+    ui_render(&g, &st, NULL, 0);
+    notch = widget_key_x(kx, 3);                        // Eb: an outline
+    CHECK(pixel(&g, notch, 3) && !pixel(&g, notch + 1, 3) && pixel(&g, notch + 2, 3));
+    notch = widget_key_x(kx, 10);                       // Bb: dotted
+    CHECK(pixel(&g, notch, 0) && !pixel(&g, notch + 1, 0));
 
     // Chord mode: chord line and octave line under the keyboard
     st = (ui_state_t){ .octave = 3, .chord_mode = true, .chord = 2, .root = 0,
@@ -776,6 +829,24 @@ static void test_ui(void) {
     CHECK(lit(&g, 64, 23, 72, 32) && !lit(&g, 64, 14, 72, 23));
     CHECK(ui_idle_ms(&a, 5000) == 2000);
 
+    // A setting's value slides the same way, clipped to its rows, but the
+    // expression pedal's doesn't
+    st = (ui_state_t){ .config = true, .msg = CONFIG_MSG_VELOCITY, .msg_value = 95,
+                       .root = -1 };
+    ui_anim_update(&a, &st, 6000);
+    st.msg_value = 96;
+    ui_anim_update(&a, &st, 6100);
+    CHECK(ui_anim_running(&a, 6100) && !ui_anim_running(&a, 6100 + UI_SLIDE_MS));
+    ui_render(&g, &st, &a, 6175);
+    CHECK(lit(&g, 32, 14, 64, 23) && lit(&g, 32, 23, 64, 32));  // old above, new below
+    ui_render(&g, &st, &a, 6100 + UI_SLIDE_MS);
+    CHECK(!lit(&g, 32, 30, 64, 32));                    // settled
+    st.msg = CONFIG_MSG_EXPRESSION;
+    ui_anim_update(&a, &st, 6300);
+    st.msg_value = 50;
+    ui_anim_update(&a, &st, 6400);
+    CHECK(!ui_anim_running(&a, 6400));
+
     // Battery page: voltage left of the column, type above the charge bar
     st = (ui_state_t){ .config = true, .msg = CONFIG_MSG_BATTERY, .root = -1, .battery = true,
                        .battery_level = 128, .battery_mv = 4120, .battery_type = BATTERY_LIION,
@@ -783,11 +854,24 @@ static void test_ui(void) {
     ui_render(&g, &st, NULL, 0);
     CHECK(lit(&g, 0, 14, 64, 28) && lit(&g, 64, 13, 128, 21) && pixel(&g, 64, 23));
 
-    // Battery: only on the config map, filling from the bottom; nearly empty
+    // Battery while playing: in the bottom right corner, HOLD beside it
+    st = (ui_state_t){ .octave = 3, .root = -1, .battery = true, .battery_level = 255,
+                       .chord_mode = true, .hold = true };
+    ui_render(&g, &st, NULL, 0);
+    CHECK(pixel(&g, 122, 30) && pixel(&g, 126, 23) && !lit(&g, 122, 13, 127, 21));
+    CHECK(!lit(&g, 121, 21, 122, 32) && lit(&g, 88, 23, 120, 32));
+    st.battery_external = true;                         // full, a dark bolt
+    ui_render(&g, &st, NULL, 0);
+    CHECK(pixel(&g, 123, 23) && pixel(&g, 125, 29) && !pixel(&g, 124, 25));
+    st.battery_external = false;
+    st.battery_level = 10;
+    ui_anim_t c = { 0 };
+    ui_anim_update(&c, &st, 0);
+    CHECK(!ui_anim_running(&c, 0));                     // "!" steady
+
+    // On the config map, under F', filling from the bottom; nearly empty
     // it blinks an exclamation mark, so frames keep coming
     st = (ui_state_t){ .octave = 3, .root = -1, .battery = true, .battery_level = 255 };
-    ui_render(&g, &st, NULL, 0);
-    CHECK(!lit(&g, 100, 13, 114, 32));                  // not while playing
     st.config = true;
     ui_render(&g, &st, NULL, 0);
     CHECK(lit(&g, 107, 19, 110, 21));                   // full to the top
@@ -824,8 +908,11 @@ static const uint32_t SPLASH_REFERENCE[SPLASH_FRAMES] = {
     0x1bb57122, 0xa62bda29, 0x0633cef4, 0x748b2488, 0xd0958f99, 0xfa7ba644,
     0x9669c004, 0x1a4ea9d3, 0xfc291715, 0xd70281a9, 0xc2d66b25, 0x8ff4094f,
     0xeae6c826, 0x50e93764, 0xa47650e2, 0x0a3d51ef, 0x451aa479, 0x1f3e413f,
-    0x2372db1b, 0xc24692c9, 0xc24692c9, 0xc24692c9, 0xc24692c9, 0xd1ae3359,
-    0x335df499, 0xc8c87eb5, 0x27ce0105, 0x4d7705c5,
+    0x2372db1b, 0xc24692c9, 0xc24692c9, 0xc24692c9, 0xc24692c9, 0xc24692c9,
+    0xc24692c9, 0xc24692c9, 0xc24692c9, 0xc24692c9, 0xc24692c9, 0xc24692c9,
+    0xc24692c9, 0xc24692c9, 0xc24692c9, 0xc24692c9, 0xc24692c9, 0xc24692c9,
+    0xc24692c9, 0xc24692c9, 0xc24692c9, 0xd1ae3359, 0x335df499, 0xc8c87eb5,
+    0x27ce0105, 0x4d7705c5,
 };
 
 static uint32_t fnv1a(const uint8_t *p, size_t n) {

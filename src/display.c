@@ -11,6 +11,8 @@ static uint16_t words[PREFIX_WORDS + 1 + GFX_MAX_WIDTH * GFX_MAX_HEIGHT / 8];
 
 static int dma = -1;
 static uint8_t col_offset;
+static uint8_t rows;
+static bool started;
 static bool ok;
 
 static bool wait_dma(void) {
@@ -24,14 +26,33 @@ static bool wait_dma(void) {
     return true;
 }
 
-// Same sequence as legacy/ssd1305.py; 0x00 marks a command stream
-static bool send_init(uint8_t height) {
+// Also until the FIFO has drained: the SDK's blocking writes disable the
+// controller first, which would cut a frame short
+static bool wait_idle(void) {
+    if (!wait_dma()) {
+        return false;
+    }
+    i2c_hw_t *hw = i2c_get_hw(OLED_I2C);
+    absolute_time_t timeout = make_timeout_time_ms(DMA_TIMEOUT_MS);
+    while (!(hw->status & I2C_IC_STATUS_TFE_BITS) ||
+           (hw->status & I2C_IC_STATUS_MST_ACTIVITY_BITS)) {
+        if (time_reached(timeout)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Same sequence as legacy/ssd1305.py; 0x00 marks a command stream. Only
+// the first time does it turn the panel off first: off and on again it
+// stays dark for about 100 ms, so a recovery mustn't.
+static bool send_init(uint8_t contrast) {
     const uint8_t seq[] = {
         0x00,
-        0xAE,               // display off
+        started ? 0xE3 : 0xAE,  // no-op, or display off
         0xD5, 0x80,         // clock divide
         0xA1,               // segment remap
-        0xA8, height - 1,   // multiplex ratio
+        0xA8, rows - 1,     // multiplex ratio
         0xD3, 0x00,         // display offset
         0xAD, 0x8E,         // master config
         0xD8, 0x05,         // area colour, low power
@@ -40,7 +61,7 @@ static bool send_init(uint8_t height) {
         0x2E,               // scroll off
         0xC8,               // COM scan decrement
         0xDA, 0x12,         // COM pins
-        0x81, 0xFF,         // contrast
+        0x81, contrast,     // contrast
         0xD9, 0xD2,         // precharge
         0xDB, 0x34,         // VCOMH
         0xA6,               // not inverted
@@ -52,7 +73,7 @@ static bool send_init(uint8_t height) {
                                 20000) == (int)sizeof(seq);
 }
 
-bool display_init(uint8_t height, uint8_t offset) {
+bool display_init(uint8_t height, uint8_t offset, uint8_t contrast) {
     if (dma < 0) {
         gpio_set_function(PIN_OLED_SDA, GPIO_FUNC_I2C);
         gpio_set_function(PIN_OLED_SCL, GPIO_FUNC_I2C);
@@ -63,19 +84,22 @@ bool display_init(uint8_t height, uint8_t offset) {
         channel_config_set_dreq(&c, i2c_get_dreq(OLED_I2C, true));
         dma_channel_configure(dma, &c, &i2c_get_hw(OLED_I2C)->data_cmd, words,
                               0, false);
+    } else {
+        wait_idle();
     }
-    wait_dma();
     // Resets the controller too, in case a failed frame left the bus busy
     i2c_init(OLED_I2C, OLED_I2C_HZ);
     col_offset = offset;
+    rows = height;
     // The blocking write also leaves the target address set for the DMA
-    ok = send_init(height);
+    ok = send_init(contrast);
+    started |= ok;
     return ok;
 }
 
 void display_power(bool on) {
     const uint8_t cmd[] = { 0x00, on ? 0xAF : 0xAE };
-    if (!wait_dma()) {
+    if (!wait_idle()) {
         ok = false;
         return;
     }

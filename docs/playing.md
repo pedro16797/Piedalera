@@ -1,11 +1,13 @@
 # Playing
 
-The screen shows the 20 pedals as a keyboard, with held pedals filled. When
+The screen shows the 20 pedals as a keyboard, with held pedals hollow. When
 holding something for a second triggers an action, a line runs round the
 edge of the screen; the action happens when it closes. Without playing, the
 screen dims after a minute and turns off after five, and after ten the
 pedalboard goes into deep sleep (see `display.dim_s`, `display.off_s` and
-`power.sleep_s`); any pedal or button wakes it and plays as usual.
+`power.sleep_s`); any pedal or button wakes it and plays as usual. With
+`power.battery` set, the charge shows in the bottom right corner, with `!`
+when nearly empty, or a lightning bolt on USB power.
 
 ## Normal mode
 
@@ -28,6 +30,7 @@ h7 Half-diminished 7th, 7 Seventh) and turn hold on or off (H).
 
 - One chord sounds at a time. A root pressed while a chord sounds plays as
   soon as you release the current one.
+- The sounding chord's notes are dotted on the screen, its root solid.
 - **Hold** keeps the chord sounding after release until the next root.
 - The octave buttons work as in normal mode.
 
@@ -42,8 +45,8 @@ h7 Half-diminished 7th, 7 Seventh) and turn hold on or off (H).
 | E + F held | [Expression pedal](#expression-pedal) on or off |
 | G / A | Sound variation, `Bank` (0–127) |
 | B / C' | Transpose, `Transp.` (−12 to +12) |
-| D' / E' | Debounce, ms (0–50): raise it if pedals play twice |
-| F' | Battery voltage, type and charge, when `power.battery` is set; the map shows the charge under F' and blinks `!` when nearly empty |
+| D' / E' | Debounce, ms (0–50): raise it if pedals play twice or notes sound on their own |
+| F' | Battery voltage, type and charge, or `External power` (with `power.battery` set) |
 | G' held | USB flash mode, to install new firmware |
 
 The left pedal of each pair turns the setting down, the right one up; hold
@@ -63,8 +66,9 @@ every mode once turned on.
 - **Off:** hold E and F again. It sends 127, so the synth isn't left quiet,
   and forgets the travel: turning it on again learns it afresh, e.g. for
   another pedal.
-- The travel is only learnt in config mode, on the map or the pedal's page,
-  so unplugging the pedal while playing can't spoil it. If the pedal
-  doesn't reach 0 or 127, open config mode and push it to its ends again:
-  the travel only ever widens.
+- **Unplugged:** it sends 127 and is ignored until plugged back in; either
+  is noticed within half a second.
+- The travel is only learnt in config mode, on the map or the pedal's page.
+  If the pedal doesn't reach 0 or 127, push it to its ends there again: the
+  travel only ever widens.
 - In config mode, moving the pedal shows its page and value.
