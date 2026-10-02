@@ -119,7 +119,7 @@ void ui_anim_update(ui_anim_t *a, const ui_state_t *st, uint32_t now) {
     }
     // Only while playing; entering config mode toggles and restores it
     if (!st->config && !a->last.config) {
-        if (st->chord_mode != a->last.chord_mode) {
+        if (st->chord_mode != a->last.chord_mode || st->modes != a->last.modes) {
             a->mode_at = now;
         }
         if (st->octave != a->last.octave) {
@@ -319,7 +319,7 @@ static void screen(gfx_t *g, const ui_state_t *st, const ui_anim_t *a, uint32_t 
 
     // Mode just toggled: its name, large, for a moment
     if (a && active(a->mode_at, now, UI_BANNER_MS)) {
-        const char *name = st->chord_mode ? "CHORD" : "NORMAL";
+        const char *name = !st->chord_mode ? "NORMAL" : st->modes ? "MODE" : "CHORD";
         int len = (int)strlen(name);
         gfx_text_scaled(g, (g->width - len * 16) / 2, KB_H + (g->height - KB_H - 14) / 2,
                         name, 2);
@@ -332,13 +332,17 @@ static void screen(gfx_t *g, const ui_state_t *st, const ui_anim_t *a, uint32_t 
         return;
     }
 
-    // Chord: root and type above the octave, hold beside it, left of the
-    // battery
+    // Chord: root and type above the octave, or the mode and its tonic; hold
+    // beside the octave, left of the battery
     char *p = line;
-    if (st->root >= 0) {
-        p = put_str(put_str(p, NOTE_NAMES[st->root % 12]), " ");
+    if (st->modes) {
+        put_str(put_str(put_str(p, NOTE_NAMES[st->tonic % 12]), " "), MODES[st->mode % MODE_COUNT]);
+    } else {
+        if (st->root >= 0) {
+            p = put_str(put_str(p, NOTE_NAMES[st->root % 12]), " ");
+        }
+        put_str(p, CHORDS[st->chord].name);
     }
-    put_str(p, CHORDS[st->chord].name);
     gfx_text(g, 0, TEXT_Y, line);
     if (st->hold) {
         gfx_text(g, (st->battery ? bat_x - 2 : g->width) - 4 * 8, TEXT_Y + 9, "HOLD");

@@ -26,6 +26,9 @@ typedef struct {
 // Indexed by pull_t
 static const char *const PULL_NAMES[] = { "none", "up", "down" };
 
+// Indexed by keys_alternative
+static const char *const ALTERNATIVE_NAMES[] = { "chord", "mode" };
+
 static const field_t FIELDS[] = {
     F("display.width",      display_width,      T_U8,   64,  128,  128),
     F("display.height",     display_height,     T_U8,   32,   64,   32),
@@ -46,6 +49,7 @@ static const field_t FIELDS[] = {
     F("keys.active_low",    keys_active_low,    T_BOOL,  0,    1,    1),
     N("keys.pull",          keys_pull,          PULL_NAMES, 3, PULL_NONE),
     F("keys.debounce_ms",   keys_debounce_ms,   T_U8,    0,   50,    5),
+    N("keys.alternative",   keys_alternative,   ALTERNATIVE_NAMES, 2, 0),
     F("power.sleep_s",      power_sleep_s,      T_U16,   0, 7200,  600),
     N("power.battery",      power_battery,      BATTERY_NAMES, BATTERY_TYPES, BATTERY_LIION),
     F("power.cells",        power_cells,        T_U8,    1,    4,    1),

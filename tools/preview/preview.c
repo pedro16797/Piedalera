@@ -69,6 +69,26 @@ static void chord_hold(ui_state_t *st, uint32_t t) {
     st->marks = 0x891u << st->root;     // root, 3rd, 5th, 7th
 }
 
+// D Dorian: D minor 7th, then C sharp, outside it, plays the C major triad
+static void modes(ui_state_t *st, uint32_t t) {
+    base(st);
+    st->chord_mode = true;
+    st->modes = true;
+    st->mode = 1;
+    st->tonic = 2;
+    st->root = t < 1000 ? 2 : 0;
+    st->keys = t < 1000 ? KEY(2) : KEY(1);
+    st->marks = (t < 1000 ? 0x489u : 0x91u) << st->root;
+}
+
+// H held towards mode mode, 60 % of the way
+static void modes_switch(ui_state_t *st, uint32_t t) {
+    chord(st, t);
+    st->keys = KEY(19);
+    st->hold = true;
+    st->progress = 153;
+}
+
 // On batteries: the charge in the corner, in normal mode, then chord mode
 // with hold, nearly empty
 static void playing_battery(ui_state_t *st, uint32_t t) {
@@ -212,10 +232,12 @@ static void config_idle(ui_state_t *st, uint32_t t) {
     }
 }
 
-// Both octave buttons toggle chord mode on, then off again
+// Both octave buttons toggle chord mode on and off, then H switches to mode
+// mode
 static void mode_banner(ui_state_t *st, uint32_t t) {
     base(st);
-    st->chord_mode = t >= 200 && t < 1400;
+    st->chord_mode = (t >= 200 && t < 1400) || t >= 2000;
+    st->modes = t >= 2000;
 }
 
 // Octave up, then down
@@ -253,10 +275,12 @@ static void config_bootsel(ui_state_t *st, uint32_t t) {
 static const scene_t SCENES[] = {
     { "normal",            2000, 10, normal, NULL },
     { "normal-hold",       0,    0,  normal_hold, NULL },
-    { "mode-banner",       2400, 10, mode_banner, NULL },
+    { "mode-banner",       3200, 10, mode_banner, NULL },
     { "octave-shift",      800,  40, octave_shift, NULL },
     { "chord",             0,    0,  chord, NULL },
     { "chord-hold",        1800, 5,  chord_hold, NULL },
+    { "modes",             2000, 5,  modes, NULL },
+    { "modes-switch",      0,    0,  modes_switch, NULL },
     { "playing-battery",   3000, 2,  playing_battery, NULL },
     { "playing-usb",       1000, 2,  playing_usb, NULL },
     { "config",            0,    0,  config_title, NULL },
@@ -395,10 +419,11 @@ static bool is_white(int key) {
     return widget_key_width(key) != widget_key_width(1);
 }
 
-// Label centred under a white key (row 0 or 1) or over a black one
+// Label centred under a white key or over a black one, rows counting away
+// from the keyboard
 static void key_label(gfx_t *g, int kb_y, int key, const char *label, int row) {
     int x = widget_key_x(KB_X, key) + (widget_key_width(key) - widget_tiny_width(label)) / 2;
-    int y = is_white(key) ? kb_y + DIAGRAM_KB_H + 4 + row * 7 : kb_y - 6;
+    int y = is_white(key) ? kb_y + DIAGRAM_KB_H + 4 + row * 7 : kb_y - 6 - row * 7;
     widget_tiny_text(g, x, y, label, true);
 }
 
@@ -431,21 +456,32 @@ static void diagram_normal(gfx_t *g) {
     blit_centred(g, &SPRITE_SETTINGS, 106, 41);
 }
 
-static void diagram_chord(gfx_t *g) {
-    static const char *const LABELS[8] = { "M7", "M", "m7", "m", "d7", "h7", "7", "H" };
-    int kb_y = 6;
+// Labels for the upper eight keys, an arc under the roots, and its name;
+// labels over neighbouring black keys alternate rows too if kb_y leaves room
+static void diagram_upper(gfx_t *g, int kb_y, const char *const labels[8], const char *roots) {
     gfx_clear(g);
     widget_keyboard(g, KB_X, kb_y, DIAGRAM_KB_H, 0, 0, 0);
-    // Chord types and hold on the upper eight keys; labels under neighbouring
-    // white keys alternate rows, as they are as wide as the keys
-    for (int key = 12, white = 0; key < 20; key++) {
-        key_label(g, kb_y, key, LABELS[key - 12], is_white(key) ? white++ & 1 : 0);
+    // Chord types or modes and hold on the upper eight keys; labels under
+    // neighbouring white keys alternate rows, as they are as wide as the keys
+    for (int key = 12, white = 0, black = 0; key < 20; key++) {
+        int row = is_white(key) ? white++ & 1 : kb_y > 6 ? black++ & 1 : 0;
+        key_label(g, kb_y, key, labels[key - 12], row);
     }
     // Roots: one arc under all of them
     int y = kb_y + DIAGRAM_KB_H + 1;
     widget_arc(g, KB_X, y, 0, 11);
     int left = widget_key_x(KB_X, 0), right = widget_key_x(KB_X, 11) + widget_key_width(11);
-    widget_tiny_text(g, (left + right - widget_tiny_width("Chord")) / 2, y + 4, "Chord", true);
+    widget_tiny_text(g, (left + right - widget_tiny_width(roots)) / 2, y + 4, roots, true);
+}
+
+static void diagram_chord(gfx_t *g) {
+    static const char *const LABELS[8] = { "M7", "M", "m7", "m", "d7", "h7", "7", "H" };
+    diagram_upper(g, 6, LABELS, "Chord");
+}
+
+static void diagram_modes(gfx_t *g) {
+    static const char *const LABELS[8] = { "Io", "Do", "Ph", "Ly", "Mi", "Ae", "Lo", "H" };
+    diagram_upper(g, 13, LABELS, "Chord");
 }
 
 static void write_diagrams(const char *dir) {
@@ -461,6 +497,11 @@ static void write_diagrams(const char *dir) {
     gfx_init(&g, 128, 40);
     diagram_chord(&g);
     snprintf(path, sizeof(path), "%s/keys-chord.png", dir);
+    frames_png(path, buf, 1, g.width, g.height);
+
+    gfx_init(&g, 128, 48);
+    diagram_modes(&g);
+    snprintf(path, sizeof(path), "%s/keys-mode.png", dir);
     frames_png(path, buf, 1, g.width, g.height);
 
     gfx_init(&g, 128, 32);
