@@ -12,7 +12,7 @@ python3 tools/config2uf2.py --board pico config/piedalera.ini piedalera-config.u
 converts the `piedalera.ini` next to it for every board. It rejects unknown
 keys and values out of range. Install the UF2 like firmware (see the
 [setup guide](setup-guide.md)); it only replaces the settings, and firmware
-updates keep them. Changes made on the pedalboard (config mode, octave) are
+updates keep them. Changes made on the pedalboard (config mode, octave, chord or mode) are
 saved to the same place.
 
 | Key                  | Default | Range              | Meaning |
@@ -36,6 +36,7 @@ saved to the same place.
 | `keys.active_low`    | true    | true / false       | Pressed reads low |
 | `keys.pull`          | none    | up / down / none   | Internal pull resistor on the inputs |
 | `keys.debounce_ms`   | 5       | 0–50               | Time an input must be stable to count; with 0, noise on a pedal cable can play notes |
+| `keys.alternative`   | chord   | chord / mode       | What both octave buttons switch to from normal mode: [chord or mode mode](playing.md#chord-mode); saved when switched by holding H |
 | `power.sleep_s`      | 600     | 0–7200             | Seconds without input before deep sleep (screen off, Pico stopped until a press); 0 never |
 | `power.battery`      | li-ion  | none / alkaline / nimh / li-ion | Battery type, for the charge shown on screen (li-ion also covers LiPo); `none` on a power supply |
 | `power.cells`        | 1       | 1–4                | Cells in series (e.g. 1 for an 18650, 3 for 3×AA) |

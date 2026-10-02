@@ -24,6 +24,8 @@ static uint32_t input_at;   // last time an input was held or released
 static uint32_t battery_mv; // filtered, 0 until the first reading
 static bool vbus;           // USB plugged in, where the board can tell
 static bool expression_on;  // readings coming in since it was enabled
+static bool switching;      // H held towards switching chord and mode mode
+static uint32_t switch_at;
 
 static void request_save(uint32_t now, uint32_t delay) {
     save_pending = true;
@@ -40,6 +42,7 @@ void app_init(settings_t *s) {
     battery_mv = 0;
     vbus = false;
     expression_on = false;
+    switching = false;
     save_pending = false;
     notes_init(s->midi_channel - 1);
     notes_panic();
@@ -147,6 +150,21 @@ void app_update(const input_state_t *in, uint32_t now) {
     for (uint32_t b = in->down & KEYS_MASK; b; b &= b - 1) {
         keyboard_press(__builtin_ctz(b), octave);
     }
+
+    // H held: chord and mode mode switch when the border closes
+    if (!keyboard_chord_mode() || !(in->pressed & INPUT_BIT(KEY_HOLD))) {
+        switching = false;
+    } else if (in->down & INPUT_BIT(KEY_HOLD)) {
+        switching = true;
+        switch_at = now;
+    } else if (switching) {
+        progress = hold_progress(now - switch_at, KEY_HOLD_SWITCH_MS);
+        if (now - switch_at >= KEY_HOLD_SWITCH_MS) {
+            switching = false;
+            keyboard_switch_alternative();
+            request_save(now, SAVE_DELAY_MS);
+        }
+    }
 }
 
 void app_ui_state(ui_state_t *out) {
@@ -159,6 +177,9 @@ void app_ui_state(ui_state_t *out) {
     out->chord_mode = keyboard_chord_mode();
     out->chord = keyboard_chord();
     out->hold = keyboard_hold();
+    out->modes = keyboard_modes();
+    out->mode = keyboard_mode();
+    out->tonic = keyboard_tonic();
     out->config = config;
     out->brightness = settings->display_brightness;
     out->progress = progress;

@@ -234,6 +234,9 @@ static void test_normal(void) {
 }
 
 static void test_chords(void) {
+    for (int i = 0; i < CHORD_COUNT; i++) {
+        CHECK(strlen(CHORDS[i].name) <= 13);    // "Db " before it fills the line
+    }
     setup();
     keyboard_set_chord_mode(true);
 
@@ -287,6 +290,87 @@ static void test_hold(void) {
     keyboard_press(KEY_HOLD, 3);            // hold off stops the chord
     EXPECT("off 50", "off 54", "off 57");
     CHECK(!keyboard_hold());
+}
+
+// Ionian on a new tonic, with nothing sounding after
+static void pick_tonic(int key) {
+    keyboard_press(12, 3);
+    keyboard_press(key, 3);
+    keyboard_release(key, 3);
+    keyboard_release(12, 3);
+    clear_sent();
+}
+
+static void test_modes(void) {
+    setup();
+    s.keys_alternative = 1;
+    keyboard_set_chord_mode(true);
+
+    keyboard_press(2, 3);                   // C Ionian: D minor 7th
+    EXPECT("on 50 95", "on 53 95", "on 57 95", "on 60 95");
+    keyboard_release(2, 3);
+    clear_sent();
+    keyboard_press(11, 3);                  // B half-diminished 7th
+    EXPECT("on 59 95", "on 62 95", "on 65 95", "on 69 95");
+    keyboard_release(11, 3);
+    clear_sent();
+    keyboard_press(1, 3);                   // outside: C major triad
+    EXPECT("on 48 95", "on 52 95", "on 55 95");
+    CHECK(keyboard_root() == 0 && keyboard_marks() == 0x91);
+    keyboard_release(1, 3);
+
+    keyboard_press(13, 3);                  // Dorian
+    keyboard_release(13, 3);
+    clear_sent();
+    keyboard_press(0, 3);                   // C minor 7th
+    EXPECT("on 48 95", "on 51 95", "on 55 95", "on 58 95");
+    keyboard_release(0, 3);
+
+    // A pedal pressed with a mode key held picks the tonic, silently
+    keyboard_press(13, 3);
+    clear_sent();
+    keyboard_press(2, 3);
+    keyboard_release(2, 3);
+    keyboard_release(13, 3);
+    EXPECT_NONE();
+    CHECK(keyboard_tonic() == 2 && keyboard_mode() == 1);
+    keyboard_press(0, 3);                   // D Dorian: C major 7th
+    EXPECT("on 48 95", "on 52 95", "on 55 95", "on 59 95");
+    keyboard_release(0, 3);
+
+    // Outside the scale, the scale note of the same letter: in D Ionian
+    // (sharps) C is C sharp diminished, and C sharp itself in G Ionian is C
+    keyboard_press(12, 3);
+    keyboard_release(12, 3);
+    clear_sent();
+    keyboard_press(0, 3);
+    EXPECT("on 49 95", "on 52 95", "on 55 95");
+    CHECK(keyboard_root() == 1);
+    keyboard_release(0, 3);
+    pick_tonic(7);
+    keyboard_press(1, 3);
+    EXPECT("on 48 95", "on 52 95", "on 55 95");
+    keyboard_release(1, 3);
+    keyboard_press(5, 3);                   // F: F sharp diminished
+    EXPECT("off 48", "off 52", "off 55", "on 54 95", "on 57 95", "on 60 95");
+    keyboard_release(5, 3);
+
+    // F Ionian (flats): D flat is D minor, B is B flat major
+    pick_tonic(5);
+    keyboard_press(1, 3);
+    EXPECT("on 50 95", "on 53 95", "on 57 95");
+    keyboard_release(1, 3);
+    clear_sent();
+    keyboard_press(11, 3);
+    EXPECT("on 58 95", "on 62 95", "on 65 95");
+    keyboard_release(11, 3);
+
+    // G flat Ionian: C is C flat, B major below the keyboard
+    pick_tonic(6);
+    keyboard_press(0, 3);
+    EXPECT("on 47 95", "on 51 95", "on 54 95");
+    CHECK(keyboard_root() == -1 && keyboard_marks() == 0x48);
+    keyboard_release(0, 3);
 }
 
 // Octave buttons
@@ -529,6 +613,36 @@ static bool lit(const gfx_t *g, int x0, int y0, int x1, int y1) {
 }
 
 // Battery
+
+// Chord mode, then H held for a second: the tap's hold is undone and mode
+// mode takes over, saved like the octave
+static void test_switch(void) {
+    settings_defaults(&s);
+    memset(&in, 0, sizeof(in));
+    app_init(&s);
+    const uint32_t both = INPUT_BIT(INPUT_OCT_UP) | INPUT_BIT(INPUT_OCT_DOWN);
+    ui_state_t ui;
+    tick(both, 0);
+    tick(both, 100);
+    tick(0, 110);
+    uint32_t h = INPUT_BIT(KEY_HOLD);
+    for (uint32_t t = 200; t <= 1200; t += 10) {
+        tick(h, t);
+        app_ui_state(&ui);
+        if (t == 700) CHECK(ui.hold && !ui.modes && ui.progress == 127);
+    }
+    tick(h, 1201);
+    app_ui_state(&ui);
+    CHECK(ui.chord_mode && ui.modes && !ui.hold && ui.progress == 0);
+    CHECK(s.keys_alternative == 1);
+    tick(0, 1210);
+    tick(h, 1300);                         // a tap still toggles hold
+    tick(0, 1310);
+    CHECK(keyboard_hold());
+    tick(h, 1400);
+    tick(0, 1410);
+    CHECK(app_save_pending());
+}
 
 static void test_battery(void) {
     // Charge along each curve, per cell
@@ -988,8 +1102,10 @@ int main(void) {
     test_normal();
     test_chords();
     test_hold();
+    test_modes();
     test_octave();
     test_app();
+    test_switch();
     test_battery();
     test_expression();
     test_ui();
