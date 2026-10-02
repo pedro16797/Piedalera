@@ -81,6 +81,18 @@ static void modes(ui_state_t *st, uint32_t t) {
     st->marks = (t < 1000 ? 0x489u : 0x91u) << st->root;
 }
 
+// Dorian picked: the tonic waits for a pedal, then D sets it and plays its
+// minor 7th
+static void modes_pick(ui_state_t *st, uint32_t t) {
+    modes(st, 0);
+    st->keys = t < 600 ? KEY(13) : t < 1000 ? 0 : KEY(2);
+    if (t < 1000) {
+        st->tonic = -1;
+        st->root = -1;
+        st->marks = 0;
+    }
+}
+
 // H held towards mode mode, 60 % of the way
 static void modes_switch(ui_state_t *st, uint32_t t) {
     chord(st, t);
@@ -238,6 +250,7 @@ static void mode_banner(ui_state_t *st, uint32_t t) {
     base(st);
     st->chord_mode = (t >= 200 && t < 1400) || t >= 2000;
     st->modes = t >= 2000;
+    st->tonic = -1;
 }
 
 // Octave up, then down
@@ -280,6 +293,7 @@ static const scene_t SCENES[] = {
     { "chord",             0,    0,  chord, NULL },
     { "chord-hold",        1800, 5,  chord_hold, NULL },
     { "modes",             2000, 5,  modes, NULL },
+    { "modes-pick",        2000, 5,  modes_pick, NULL },
     { "modes-switch",      0,    0,  modes_switch, NULL },
     { "playing-battery",   3000, 2,  playing_battery, NULL },
     { "playing-usb",       1000, 2,  playing_usb, NULL },

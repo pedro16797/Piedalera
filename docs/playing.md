@@ -42,12 +42,13 @@ h7 Half-diminished 7th, 7 Dominant 7th) and turn hold on or off (H).
 The lower twelve pedals play the chords of a key, so every chord fits the
 scale; the upper seven pick the mode (Io Ionian, Do Dorian, Ph Phrygian,
 Ly Lydian, Mi Mixolydian, Ae Aeolian, Lo Locrian) and H turns hold on or
-off. The screen shows the key, e.g. `D Dorian`; at power-up it is C Ionian.
+off. The screen shows the key, e.g. `D Dorian`.
 
 ![Mode mode](images/keys-mode.png)
 
-- **Tonic:** hold a mode key and press a pedal. That pedal becomes the
-  tonic and plays nothing.
+- **Tonic:** after power-up, picking a mode or switching to mode mode,
+  the first pedal you play is the tonic. Until then the screen shows e.g.
+  `? Dorian`.
 - **Pedals in the scale** play their seventh chord from the scale: in
   C Ionian, D plays D minor 7th and G plays G dominant 7th.
 - **Pedals outside the scale** play a triad: that of the scale note with

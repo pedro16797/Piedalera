@@ -46,7 +46,8 @@ bool keyboard_chord_mode(void);
 uint8_t keyboard_chord(void);
 bool keyboard_hold(void);
 
-// Mode mode: the mode and the key of its tonic (0-11)
+// Mode mode: the mode and the key of its tonic (0-11), -1 until the first
+// pedal after picking a mode or switching to mode mode, which sets it
 bool keyboard_modes(void);
 uint8_t keyboard_mode(void);
-uint8_t keyboard_tonic(void);
+int keyboard_tonic(void);

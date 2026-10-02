@@ -11,7 +11,7 @@
 - [ ] The Yamaha MU5 keeping its own sound by default, and taking each
   listed sound when picked and at power-up
 - [ ] Mode mode: H held switching to it and back, kept after a power cycle,
-  and setting the tonic with a mode key held
+  and the first pedal after a mode key setting the tonic
 
 ## Later
 

@@ -17,7 +17,7 @@ typedef struct {
     bool hold;
     bool modes;         // the upper keys pick a mode, not a chord type
     uint8_t mode;
-    uint8_t tonic;      // key of the mode's tonic, 0-11
+    int8_t tonic;       // key of the mode's tonic, -1 until picked
     bool config;
     uint8_t msg;        // config_msg_t
     int16_t msg_value;

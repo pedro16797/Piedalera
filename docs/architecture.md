@@ -61,8 +61,8 @@ the drawing modules also run in the display preview (`tools/preview`).
   mode and tonic: a seventh on its notes, else a triad on the scale note of
   the same letter. The scale is spelt from the tonic's name (flats for
   black keys) and the pedal with the scale's sharps or flats; with
-  neither, the note a semitone below is used. A pedal pressed while a mode
-  key is held sets the tonic and plays nothing.
+  neither, the note a semitone below is used. The first pedal after a mode
+  key or a switch to mode mode sets the tonic, then plays.
 - **H held** 1 s in chord or mode mode undoes the hold toggle of its press
   and switches between the two (`keys.alternative`), saved like the octave.
 - **Octave buttons:** both together toggle chord or mode mode after

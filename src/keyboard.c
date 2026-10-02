@@ -23,7 +23,6 @@ const char *const MODES[MODE_COUNT] = {
 static const uint8_t MAJOR[7] = { 0, 2, 4, 5, 7, 9, 11 };
 
 #define NO_KEY   (-1)
-#define SELECTOR_KEYS (0x7Fu << 12)
 
 static settings_t *settings;
 static bool chord_mode;
@@ -31,6 +30,7 @@ static bool hold;
 static uint8_t chord;
 static uint8_t mode;
 static uint8_t tonic;
+static bool tonic_next;     // the next pedal sets the tonic
 
 // Keys whose press was taken in the current mode
 static uint32_t active;
@@ -160,6 +160,7 @@ void keyboard_init(settings_t *s) {
     chord = 0;
     mode = 0;
     tonic = 0;
+    tonic_next = true;
     keyboard_reset();
 }
 
@@ -181,15 +182,16 @@ static void chord_press(int key, uint8_t octave) {
             }
         } else if (modes()) {
             mode = key - 12;
+            tonic_next = true;
         } else {
             chord = SELECTOR[key - 12];
         }
         return;
     }
-    // A mode key held: the pedal picks the tonic instead
-    if (modes() && (active & SELECTOR_KEYS)) {
+    // First pedal after picking a mode: its tonic, and plays as such
+    if (modes() && tonic_next) {
         tonic = key;
-        return;
+        tonic_next = false;
     }
 
     if (hold || sounding_root == NO_KEY) {
@@ -247,6 +249,7 @@ void keyboard_switch_alternative(void) {
     keyboard_reset();
     hold = !hold;
     settings->keys_alternative = !settings->keys_alternative;
+    tonic_next = true;
 }
 
 int keyboard_root(void) {
@@ -274,4 +277,4 @@ uint8_t keyboard_chord(void) { return chord; }
 bool keyboard_hold(void) { return hold; }
 bool keyboard_modes(void) { return modes(); }
 uint8_t keyboard_mode(void) { return mode; }
-uint8_t keyboard_tonic(void) { return tonic; }
+int keyboard_tonic(void) { return tonic_next ? -1 : tonic; }

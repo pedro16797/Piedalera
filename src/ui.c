@@ -337,11 +337,12 @@ static void screen(gfx_t *g, const ui_state_t *st, const ui_anim_t *a, uint32_t 
         return;
     }
 
-    // Chord: root and type above the octave, or the mode and its tonic; hold
-    // beside the octave, left of the battery
+    // Chord: root and type above the octave, or the mode and its tonic (? until
+    // picked); hold beside the octave, left of the battery
     char *p = line;
     if (st->modes) {
-        put_str(put_str(put_str(p, NOTE_NAMES[st->tonic % 12]), " "), MODES[st->mode % MODE_COUNT]);
+        p = put_str(p, st->tonic >= 0 ? NOTE_NAMES[st->tonic % 12] : "?");
+        put_str(put_str(p, " "), MODES[st->mode % MODE_COUNT]);
     } else {
         if (st->root >= 0) {
             p = put_str(put_str(p, NOTE_NAMES[st->root % 12]), " ");
