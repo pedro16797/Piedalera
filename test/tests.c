@@ -697,9 +697,15 @@ static void test_battery(void) {
     app_ui_state(&ui);
     CHECK(!ui.config);
 
-    // A new reading isn't input, so the screen still dims
+    // A new reading isn't input, so the screen still dims, nor is the first
     ui_anim_t a = { 0 };
+    ui.battery = false;
     ui_anim_update(&a, &ui, 0);
+    ui.battery = true;
+    ui.battery_type = BATTERY_LIION;
+    ui.battery_cells = 1;
+    ui.battery_mv = 4000;
+    ui_anim_update(&a, &ui, 1000);
     ui.battery_mv += 10;
     ui.battery_level++;
     ui_anim_update(&a, &ui, 5000);
@@ -1063,11 +1069,8 @@ static const uint32_t SPLASH_REFERENCE[SPLASH_FRAMES] = {
     0x1bb57122, 0xa62bda29, 0x0633cef4, 0x748b2488, 0xd0958f99, 0xfa7ba644,
     0x9669c004, 0x1a4ea9d3, 0xfc291715, 0xd70281a9, 0xc2d66b25, 0x8ff4094f,
     0xeae6c826, 0x50e93764, 0xa47650e2, 0x0a3d51ef, 0x451aa479, 0x1f3e413f,
-    0x2372db1b, 0xc24692c9, 0xc24692c9, 0xc24692c9, 0xc24692c9, 0xc24692c9,
-    0xc24692c9, 0xc24692c9, 0xc24692c9, 0xc24692c9, 0xc24692c9, 0xc24692c9,
-    0xc24692c9, 0xc24692c9, 0xc24692c9, 0xc24692c9, 0xc24692c9, 0xc24692c9,
-    0xc24692c9, 0xc24692c9, 0xc24692c9, 0xd1ae3359, 0x335df499, 0xc8c87eb5,
-    0x27ce0105, 0x4d7705c5,
+    0x2372db1b, 0xc24692c9, 0xc24692c9, 0xc24692c9, 0xc24692c9, 0xd1ae3359,
+    0x335df499, 0xc8c87eb5, 0x27ce0105, 0x4d7705c5,
 };
 
 static uint32_t fnv1a(const uint8_t *p, size_t n) {

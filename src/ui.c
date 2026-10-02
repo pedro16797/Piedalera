@@ -110,10 +110,15 @@ void ui_anim_update(ui_anim_t *a, const ui_state_t *st, uint32_t now) {
         a->value_at = now - UI_SLIDE_MS;
         return;
     }
-    // Battery readings change on their own; only the rest means input
+    // Battery readings change on their own, the first one shows the gauge;
+    // only the rest means input
     ui_state_t cmp = *st;
+    cmp.battery = a->last.battery;
     cmp.battery_level = a->last.battery_level;
+    cmp.battery_type = a->last.battery_type;
+    cmp.battery_cells = a->last.battery_cells;
     cmp.battery_mv = a->last.battery_mv;
+    cmp.battery_external = a->last.battery_external;
     if (memcmp(&cmp, &a->last, sizeof(cmp)) != 0) {
         a->changed_at = now;
     }
