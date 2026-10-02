@@ -140,6 +140,6 @@ the drawing modules also run in the display preview (`tools/preview`).
   missing display is retried every 500 ms. After a failed transfer (e.g.
   noise on the bus) the panel is set up again without turning it off,
   since off and on again it stays dark for about 100 ms.
-- **Splash:** 50 frames at 20 fps from sprites stored as one 32-bit mask per
+- **Splash:** 34 frames at 20 fps from sprites stored as one 32-bit mask per
   column, starting once the display answers and ending early on input
   (not on a battery reading). A host test pins every frame to `assets/splash/reference.gif`.

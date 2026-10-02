@@ -5,8 +5,7 @@
 //  1-7    the shoe drops in from the top left
 //  8-14   it lands and the splash particles fly out
 //  14-23  the name slides in from the right, pushing the shoe off
-//  25-44  the name holds
-//  45-49  a wipe clears the screen from the top
+//  29-33  a wipe clears the screen from the top
 
 static const int8_t DROP[7][2] = {
     { 3, -28 }, { 6, -24 }, { 8, -20 }, { 10, -16 }, { 13, -12 }, { 14, -8 }, { 15, -4 },
@@ -32,7 +31,7 @@ static const sprite_t *const SPLASH_RIGHT[7] = {
 #define NAME_START_X    116
 #define NAME_X          9
 #define NAME_Y          9
-#define WIPE_FRAME      44
+#define WIPE_FRAME      28
 #define WIPE_SPEED      3       // rows per frame
 
 bool splash_draw(gfx_t *g, uint32_t t_ms) {
