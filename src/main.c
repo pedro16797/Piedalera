@@ -70,11 +70,11 @@ static void core1_main(void) {
     int sent_contrast = -1;
     uint32_t retry_at = 0;
 
-    // The splash starts once the display answers and ends early if the UI
-    // changes (a button was used); not after a watchdog reset, mid-song
+    // The splash starts once the display answers and ends early on input,
+    // not on a battery reading; not after a watchdog reset, mid-song
     bool splash = settings.display_splash && !watchdog_enable_caused_reboot();
     bool splash_started = false;
-    uint32_t splash_at = 0, splash_version = 0;
+    uint32_t splash_at = 0, splash_input = 0;
     int splash_frame = -1;
 
     gfx_init(&gfx, settings.display_width, settings.display_height);
@@ -148,10 +148,10 @@ static void core1_main(void) {
             if (!splash_started) {
                 splash_started = true;
                 splash_at = now;
-                splash_version = seen;
+                splash_input = anim.changed_at;
             }
             uint32_t t = now - splash_at;
-            if (seen == splash_version && splash_draw(&gfx, t)) {
+            if (anim.changed_at == splash_input && splash_draw(&gfx, t)) {
                 if ((int)(t / SPLASH_FRAME_MS) != splash_frame) {
                     splash_frame = t / SPLASH_FRAME_MS;
                     display_send(&gfx, st.brightness);
