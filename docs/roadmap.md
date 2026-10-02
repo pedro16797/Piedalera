@@ -10,12 +10,12 @@
 - [ ] The screen no longer going dark for a moment while playing
 - [ ] The Yamaha MU5 keeping its own sound by default, and taking each
   listed sound when picked and at power-up
-- [ ] Mode mode: H held switching to it and back, kept after a power cycle,
+- [ ] Scale mode: H held switching to it and back, kept after a power cycle,
   and the first pedal after a mode key setting the tonic
 
 ## Later
 
-- [ ] Narrow keyboard mode with no chord/mode modes and alternative narrow
+- [ ] Narrow keyboard mode with no chord/scale modes and alternative narrow
   Config, single key per config category and the octave buttons for up/down
 - [ ] Drumpad link: a second Pico forwards hits from a MIDI drumpad over
   BLE MIDI, and the pedalboard turns them into bass notes, strums or

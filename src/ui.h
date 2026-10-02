@@ -15,7 +15,7 @@ typedef struct {
     uint8_t chord;
     int8_t root;        // sounding chord root, -1 if none
     bool hold;
-    bool modes;         // the upper keys pick a mode, not a chord type
+    bool scales;        // the upper keys pick a mode, not a chord type
     uint8_t mode;
     int8_t tonic;       // key of the mode's tonic, -1 until picked
     bool config;
@@ -39,7 +39,7 @@ typedef struct {
 typedef struct {
     ui_state_t last;
     uint32_t changed_at;    // any change of the snapshot
-    uint32_t mode_at;       // chord or mode mode toggled: banner
+    uint32_t mode_at;       // chord or scale mode toggled: banner
     uint32_t octave_at;     // octave changed: the number slides
     uint8_t octave_from;
     uint32_t value_at;      // config value changed: the same

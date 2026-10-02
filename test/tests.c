@@ -301,7 +301,7 @@ static void pick_tonic(int key) {
     clear_sent();
 }
 
-static void test_modes(void) {
+static void test_scales(void) {
     setup();
     s.keys_alternative = 1;
     keyboard_set_chord_mode(true);
@@ -616,7 +616,7 @@ static bool lit(const gfx_t *g, int x0, int y0, int x1, int y1) {
 // Battery
 
 // Chord mode, then H held for a second: the tap's hold is undone and mode
-// mode takes over, saved like the octave
+// scale mode takes over, saved like the octave
 static void test_switch(void) {
     settings_defaults(&s);
     memset(&in, 0, sizeof(in));
@@ -630,11 +630,11 @@ static void test_switch(void) {
     for (uint32_t t = 200; t <= 1200; t += 10) {
         tick(h, t);
         app_ui_state(&ui);
-        if (t == 700) CHECK(ui.hold && !ui.modes && ui.progress == 127);
+        if (t == 700) CHECK(ui.hold && !ui.scales && ui.progress == 127);
     }
     tick(h, 1201);
     app_ui_state(&ui);
-    CHECK(ui.chord_mode && ui.modes && !ui.hold && ui.progress == 0 && ui.tonic == -1);
+    CHECK(ui.chord_mode && ui.scales && !ui.hold && ui.progress == 0 && ui.tonic == -1);
     CHECK(s.keys_alternative == 1);
     tick(0, 1210);
     tick(h, 1300);                         // a tap still toggles hold
@@ -1106,7 +1106,7 @@ int main(void) {
     test_normal();
     test_chords();
     test_hold();
-    test_modes();
+    test_scales();
     test_octave();
     test_app();
     test_switch();

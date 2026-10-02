@@ -70,10 +70,10 @@ static void chord_hold(ui_state_t *st, uint32_t t) {
 }
 
 // D Dorian: D minor 7th, then C sharp, outside it, plays the C major triad
-static void modes(ui_state_t *st, uint32_t t) {
+static void scales(ui_state_t *st, uint32_t t) {
     base(st);
     st->chord_mode = true;
-    st->modes = true;
+    st->scales = true;
     st->mode = 1;
     st->tonic = 2;
     st->root = t < 1000 ? 2 : 0;
@@ -83,8 +83,8 @@ static void modes(ui_state_t *st, uint32_t t) {
 
 // Dorian picked: the tonic waits for a pedal, then D sets it and plays its
 // minor 7th
-static void modes_pick(ui_state_t *st, uint32_t t) {
-    modes(st, 0);
+static void scales_pick(ui_state_t *st, uint32_t t) {
+    scales(st, 0);
     st->keys = t < 600 ? KEY(13) : t < 1000 ? 0 : KEY(2);
     if (t < 1000) {
         st->tonic = -1;
@@ -93,8 +93,8 @@ static void modes_pick(ui_state_t *st, uint32_t t) {
     }
 }
 
-// H held towards mode mode, 60 % of the way
-static void modes_switch(ui_state_t *st, uint32_t t) {
+// H held towards scale mode, 60 % of the way
+static void scales_switch(ui_state_t *st, uint32_t t) {
     chord(st, t);
     st->keys = KEY(19);
     st->hold = true;
@@ -244,12 +244,12 @@ static void config_idle(ui_state_t *st, uint32_t t) {
     }
 }
 
-// Both octave buttons toggle chord mode on and off, then H switches to mode
+// Both octave buttons toggle chord mode on and off, then H switches to scale
 // mode
 static void mode_banner(ui_state_t *st, uint32_t t) {
     base(st);
     st->chord_mode = (t >= 200 && t < 1400) || t >= 2000;
-    st->modes = t >= 2000;
+    st->scales = t >= 2000;
     st->tonic = -1;
 }
 
@@ -292,9 +292,9 @@ static const scene_t SCENES[] = {
     { "octave-shift",      800,  40, octave_shift, NULL },
     { "chord",             0,    0,  chord, NULL },
     { "chord-hold",        1800, 5,  chord_hold, NULL },
-    { "modes",             2000, 5,  modes, NULL },
-    { "modes-pick",        2000, 5,  modes_pick, NULL },
-    { "modes-switch",      0,    0,  modes_switch, NULL },
+    { "scales",            2000, 5,  scales, NULL },
+    { "scales-pick",       2000, 5,  scales_pick, NULL },
+    { "scales-switch",     0,    0,  scales_switch, NULL },
     { "playing-battery",   3000, 2,  playing_battery, NULL },
     { "playing-usb",       1000, 2,  playing_usb, NULL },
     { "config",            0,    0,  config_title, NULL },
@@ -493,7 +493,7 @@ static void diagram_chord(gfx_t *g) {
     diagram_upper(g, 6, LABELS, "Chord");
 }
 
-static void diagram_modes(gfx_t *g) {
+static void diagram_scales(gfx_t *g) {
     static const char *const LABELS[8] = { "Io", "Do", "Ph", "Ly", "Mi", "Ae", "Lo", "H" };
     diagram_upper(g, 13, LABELS, "Chord");
 }
@@ -514,8 +514,8 @@ static void write_diagrams(const char *dir) {
     frames_png(path, buf, 1, g.width, g.height);
 
     gfx_init(&g, 128, 48);
-    diagram_modes(&g);
-    snprintf(path, sizeof(path), "%s/keys-mode.png", dir);
+    diagram_scales(&g);
+    snprintf(path, sizeof(path), "%s/keys-scale.png", dir);
     frames_png(path, buf, 1, g.width, g.height);
 
     gfx_init(&g, 128, 32);

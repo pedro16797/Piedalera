@@ -27,7 +27,7 @@ typedef struct {
 static const char *const PULL_NAMES[] = { "none", "up", "down" };
 
 // Indexed by keys_alternative
-static const char *const ALTERNATIVE_NAMES[] = { "chord", "mode" };
+static const char *const ALTERNATIVE_NAMES[] = { "chord", "scale" };
 
 static const field_t FIELDS[] = {
     F("display.width",      display_width,      T_U8,   64,  128,  128),

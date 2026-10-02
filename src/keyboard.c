@@ -37,14 +37,14 @@ static uint32_t active;
 // Normal mode: note each key started
 static int16_t key_note[KEY_COUNT];
 
-// Chord and mode mode: the sounding chord and the root queued behind it
+// Chord and scale mode: the sounding chord and the root queued behind it
 static int sounding_root = NO_KEY;
 static int queued_root = NO_KEY;
 static int sounding_notes[4];
 static uint8_t sounding_count;
 static int chord_root;      // key of the sounding chord's root, may differ
 
-static bool modes(void) {
+static bool scales(void) {
     return settings->keys_alternative == 1;
 }
 
@@ -113,10 +113,10 @@ static int neighbour(int key) {
     return -1;
 }
 
-// Mode mode: a key in the scale plays its seventh chord, built from the
+// Scale mode: a key in the scale plays its seventh chord, built from the
 // scale; one outside it, the triad of its neighbour in the scale. Returns
 // the root.
-static int mode_chord(int key, chord_t *c) {
+static int scale_chord(int key, chord_t *c) {
     int rel = (key - tonic + 12) % 12;
     int degree = degree_of(rel);
     c->count = 4;
@@ -135,7 +135,7 @@ static int mode_chord(int key, chord_t *c) {
 
 static void chord_start(int key, uint8_t octave) {
     chord_t c = CHORDS[chord];
-    chord_root = modes() ? mode_chord(key, &c) : key;
+    chord_root = scales() ? scale_chord(key, &c) : key;
     int base = base_note(chord_root, octave);
     sounding_root = key;
     sounding_count = c.count;
@@ -180,7 +180,7 @@ static void chord_press(int key, uint8_t octave) {
                 chord_stop();
                 queued_root = NO_KEY;
             }
-        } else if (modes()) {
+        } else if (scales()) {
             mode = key - 12;
             tonic_next = true;
         } else {
@@ -189,7 +189,7 @@ static void chord_press(int key, uint8_t octave) {
         return;
     }
     // First pedal after picking a mode: its tonic, and plays as such
-    if (modes() && tonic_next) {
+    if (scales() && tonic_next) {
         tonic = key;
         tonic_next = false;
     }
@@ -275,6 +275,6 @@ uint32_t keyboard_marks(void) {
 bool keyboard_chord_mode(void) { return chord_mode; }
 uint8_t keyboard_chord(void) { return chord; }
 bool keyboard_hold(void) { return hold; }
-bool keyboard_modes(void) { return modes(); }
+bool keyboard_scales(void) { return scales(); }
 uint8_t keyboard_mode(void) { return mode; }
 int keyboard_tonic(void) { return tonic_next ? -1 : tonic; }
