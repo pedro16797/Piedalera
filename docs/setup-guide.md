@@ -30,7 +30,7 @@ three:
 
 ## 3a. First install
 
-For a pedalboard still running the old firmware, or a new Pico.
+For a new Pico.
 
 1. Hold the white **BOOTSEL** button on the Pico and plug it into the
    computer. Let go: a drive called **RPI-RP2** or **RP2350** appears.
