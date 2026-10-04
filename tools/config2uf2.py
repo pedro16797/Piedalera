@@ -53,7 +53,7 @@ SCHEMA = {
     "keys.active_low":    bool,
     "keys.pull":          ("up", "down", "none"),
     "keys.debounce_ms":   (0, 50),
-    "keys.alternative":   ("chord", "mode"),
+    "keys.alternative":   ("chord", "scale"),
     "power.sleep_s":      (0, 7200),
     "power.battery":      ("none", "alkaline", "nimh", "li-ion"),
     "power.cells":        (1, 4),

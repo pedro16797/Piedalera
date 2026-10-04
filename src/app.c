@@ -24,7 +24,7 @@ static uint32_t input_at;   // last time an input was held or released
 static uint32_t battery_mv; // filtered, 0 until the first reading
 static bool vbus;           // USB plugged in, where the board can tell
 static bool expression_on;  // readings coming in since it was enabled
-static bool switching;      // H held towards switching chord and mode mode
+static bool switching;      // H held towards switching chord and scale mode
 static uint32_t switch_at;
 
 static void request_save(uint32_t now, uint32_t delay) {
@@ -151,7 +151,7 @@ void app_update(const input_state_t *in, uint32_t now) {
         keyboard_press(__builtin_ctz(b), octave);
     }
 
-    // H held: chord and mode mode switch when the border closes
+    // H held: chord and scale mode switch when the border closes
     if (!keyboard_chord_mode() || !(in->pressed & INPUT_BIT(KEY_HOLD))) {
         switching = false;
     } else if (in->down & INPUT_BIT(KEY_HOLD)) {
@@ -177,7 +177,7 @@ void app_ui_state(ui_state_t *out) {
     out->chord_mode = keyboard_chord_mode();
     out->chord = keyboard_chord();
     out->hold = keyboard_hold();
-    out->modes = keyboard_modes();
+    out->scales = keyboard_scales();
     out->mode = keyboard_mode();
     out->tonic = keyboard_tonic();
     out->config = config;

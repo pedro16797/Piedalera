@@ -295,18 +295,25 @@ static void test_hold(void) {
 // Ionian on a new tonic, with nothing sounding after
 static void pick_tonic(int key) {
     keyboard_press(12, 3);
+    keyboard_release(12, 3);
     keyboard_press(key, 3);
     keyboard_release(key, 3);
-    keyboard_release(12, 3);
     clear_sent();
 }
 
-static void test_modes(void) {
+static void test_scales(void) {
     setup();
     s.keys_alternative = 1;
     keyboard_set_chord_mode(true);
 
-    keyboard_press(2, 3);                   // C Ionian: D minor 7th
+    // The first pedal sets the tonic and plays: C Ionian, C major 7th
+    CHECK(keyboard_tonic() == -1);
+    keyboard_press(0, 3);
+    EXPECT("on 48 95", "on 52 95", "on 55 95", "on 59 95");
+    CHECK(keyboard_tonic() == 0);
+    keyboard_release(0, 3);
+    clear_sent();
+    keyboard_press(2, 3);                   // D minor 7th
     EXPECT("on 50 95", "on 53 95", "on 57 95", "on 60 95");
     keyboard_release(2, 3);
     clear_sent();
@@ -318,31 +325,25 @@ static void test_modes(void) {
     EXPECT("on 48 95", "on 52 95", "on 55 95");
     CHECK(keyboard_root() == 0 && keyboard_marks() == 0x91);
     keyboard_release(1, 3);
-
-    keyboard_press(13, 3);                  // Dorian
-    keyboard_release(13, 3);
     clear_sent();
-    keyboard_press(0, 3);                   // C minor 7th
-    EXPECT("on 48 95", "on 51 95", "on 55 95", "on 58 95");
-    keyboard_release(0, 3);
 
-    // A pedal pressed with a mode key held picks the tonic, silently
+    // Dorian: the next pedal is its tonic, D minor 7th
     keyboard_press(13, 3);
-    clear_sent();
-    keyboard_press(2, 3);
-    keyboard_release(2, 3);
     keyboard_release(13, 3);
     EXPECT_NONE();
-    CHECK(keyboard_tonic() == 2 && keyboard_mode() == 1);
+    CHECK(keyboard_tonic() == -1 && keyboard_mode() == 1);
+    keyboard_press(2, 3);
+    EXPECT("on 50 95", "on 53 95", "on 57 95", "on 60 95");
+    CHECK(keyboard_tonic() == 2);
+    keyboard_release(2, 3);
+    clear_sent();
     keyboard_press(0, 3);                   // D Dorian: C major 7th
     EXPECT("on 48 95", "on 52 95", "on 55 95", "on 59 95");
     keyboard_release(0, 3);
 
     // Outside the scale, the scale note of the same letter: in D Ionian
     // (sharps) C is C sharp diminished, and C sharp itself in G Ionian is C
-    keyboard_press(12, 3);
-    keyboard_release(12, 3);
-    clear_sent();
+    pick_tonic(2);
     keyboard_press(0, 3);
     EXPECT("on 49 95", "on 52 95", "on 55 95");
     CHECK(keyboard_root() == 1);
@@ -615,7 +616,7 @@ static bool lit(const gfx_t *g, int x0, int y0, int x1, int y1) {
 // Battery
 
 // Chord mode, then H held for a second: the tap's hold is undone and mode
-// mode takes over, saved like the octave
+// scale mode takes over, saved like the octave
 static void test_switch(void) {
     settings_defaults(&s);
     memset(&in, 0, sizeof(in));
@@ -629,11 +630,11 @@ static void test_switch(void) {
     for (uint32_t t = 200; t <= 1200; t += 10) {
         tick(h, t);
         app_ui_state(&ui);
-        if (t == 700) CHECK(ui.hold && !ui.modes && ui.progress == 127);
+        if (t == 700) CHECK(ui.hold && !ui.scales && ui.progress == 127);
     }
     tick(h, 1201);
     app_ui_state(&ui);
-    CHECK(ui.chord_mode && ui.modes && !ui.hold && ui.progress == 0);
+    CHECK(ui.chord_mode && ui.scales && !ui.hold && ui.progress == 0 && ui.tonic == -1);
     CHECK(s.keys_alternative == 1);
     tick(0, 1210);
     tick(h, 1300);                         // a tap still toggles hold
@@ -1105,7 +1106,7 @@ int main(void) {
     test_normal();
     test_chords();
     test_hold();
-    test_modes();
+    test_scales();
     test_octave();
     test_app();
     test_switch();

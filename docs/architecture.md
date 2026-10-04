@@ -32,7 +32,7 @@ the drawing modules also run in the display preview (`tools/preview`).
 | `battery.c`     | –    | ✓    | Battery types and discharge curves |
 | `expression.c`  | 0    | ✓    | Expression pedal smoothing, learnt travel, hysteresis, plug detection |
 | `notes.c`       | 0    | ✓    | Note on/off with a count per note, power-up panic |
-| `keyboard.c`    | 0    | ✓    | Normal, chord and mode mode, chord and mode tables |
+| `keyboard.c`    | 0    | ✓    | Normal, chord and scale mode, chord and mode tables |
 | `octave.c`      | 0    | ✓    | Octave buttons, auto-repeat, both-buttons gesture |
 | `config_mode.c` | 0    | ✓    | Config keys, auto-repeat, clamping, G' hold |
 | `app.c`         | 0    | ✓    | Routes inputs, UI snapshot, save timing |
@@ -57,15 +57,15 @@ the drawing modules also run in the display preview (`tools/preview`).
   queued (latest wins) and starts in the scan the sounding root is
   released. Chord type and octave are read when the chord starts. Hold
   switches chords on press and ignores releases.
-- **Mode mode** works the same, building each chord from the scale of the
+- **Scale mode** works the same, building each chord from the scale of the
   mode and tonic: a seventh on its notes, else a triad on the scale note of
   the same letter. The scale is spelt from the tonic's name (flats for
   black keys) and the pedal with the scale's sharps or flats; with
-  neither, the note a semitone below is used. A pedal pressed while a mode
-  key is held sets the tonic and plays nothing.
-- **H held** 1 s in chord or mode mode undoes the hold toggle of its press
+  neither, the note a semitone below is used. The first pedal after a mode
+  key or a switch to scale mode sets the tonic, then plays.
+- **H held** 1 s in chord or scale mode undoes the hold toggle of its press
   and switches between the two (`keys.alternative`), saved like the octave.
-- **Octave buttons:** both together toggle chord or mode mode after
+- **Octave buttons:** both together toggle chord or scale mode after
   `octave.delay_ms` and enter config mode after 1 s (undoing the toggle);
   the buttons are then ignored until both are released.
 - **MIDI** never blocks. Note-offs are sent as note-on with velocity 0 to
@@ -87,9 +87,9 @@ the drawing modules also run in the display preview (`tools/preview`).
   200 ms, and saves the settings then; at 1 s core 0 waits for any further
   save and for the full-border frame, then calls `reset_usb_boot()`.
 - **Saving** happens after config mode or 5 s after the last octave,
-  chord or mode mode switch or pedal travel change, and only when the text differs from what is stored.
+  chord or scale mode switch or pedal travel change, and only when the text differs from what is stored.
 - **Transitions:** core 1 compares each snapshot with the previous one:
-  a mode toggle or switch shows `CHORD`, `MODE` or `NORMAL` large for 0.8 s, and a new
+  a mode toggle or switch shows `CHORD`, `SCALE` or `NORMAL` large for 0.8 s, and a new
   octave or config value (not the expression pedal's) slides in over
   150 ms. Frames are sent every period while one runs, and once more when
   it ends.

@@ -16,7 +16,7 @@ Each pedal plays its note (C is MIDI 48 at octave 3).
 ![Normal mode](images/keys-normal.png)
 
 - **One octave button:** octave up or down; hold to repeat.
-- **Both briefly:** chord mode on or off, or mode mode if that was last
+- **Both briefly:** chord mode on or off, or scale mode if that was last
   used (see `keys.alternative`).
 - **Both for a second:** config mode. Entering it also silences the synth,
   in case a note got stuck.
@@ -34,26 +34,27 @@ h7 Half-diminished 7th, 7 Dominant 7th) and turn hold on or off (H).
 - The sounding chord's notes are dotted on the screen, its root solid.
 - **Hold** keeps the chord sounding after release until the next root.
 - The octave buttons work as in normal mode.
-- **Hold H for a second:** switch to [mode mode](#mode-mode); hold stays as
+- **Hold H for a second:** switch to [scale mode](#scale-mode); hold stays as
   it was. The pedalboard remembers which of the two you used last.
 
-## Mode mode
+## Scale mode
 
-The lower twelve pedals play the chords of a key, so every chord fits the
-scale; the upper seven pick the mode (Io Ionian, Do Dorian, Ph Phrygian,
-Ly Lydian, Mi Mixolydian, Ae Aeolian, Lo Locrian) and H turns hold on or
-off. The screen shows the key, e.g. `D Dorian`; at power-up it is C Ionian.
+The lower twelve pedals play the chords of a scale, so every chord fits
+it; the upper seven pick the scale's mode (Io Ionian, Do Dorian,
+Ph Phrygian, Ly Lydian, Mi Mixolydian, Ae Aeolian, Lo Locrian) and H turns
+hold on or off. The screen shows the scale, e.g. `D Dorian`.
 
-![Mode mode](images/keys-mode.png)
+![Scale mode](images/keys-scale.png)
 
-- **Tonic:** hold a mode key and press a pedal. That pedal becomes the
-  tonic and plays nothing.
+- **Tonic:** after power-up, picking a mode or switching to scale mode,
+  the first pedal you play is the tonic. Until then the screen shows e.g.
+  `? Dorian`.
 - **Pedals in the scale** play their seventh chord from the scale: in
   C Ionian, D plays D minor 7th and G plays G dominant 7th.
 - **Pedals outside the scale** play a triad: that of the scale note with
   the same letter. In D Ionian (sharps), C is taken as C♯ and plays C♯
   diminished; in F Ionian (flats), B is taken as B♭ and plays B♭ major. In
-  keys without sharps or flats it is the note below: in C Ionian, C♯ plays
+  scales without sharps or flats it is the note below: in C Ionian, C♯ plays
   C major.
 - One chord at a time, hold and the marks on screen work as in chord mode.
 - **Hold H for a second:** back to chord mode.

@@ -35,7 +35,7 @@ typedef struct {
     bool keys_active_low;
     uint8_t keys_pull;          // pull_t
     uint8_t keys_debounce_ms;
-    uint8_t keys_alternative;   // 0 chord, 1 mode
+    uint8_t keys_alternative;   // 0 chord, 1 scale
     uint16_t power_sleep_s;     // 0: never
     uint8_t power_battery;      // battery_t
     uint8_t power_cells;
