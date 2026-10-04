@@ -5,13 +5,6 @@
 - [ ] Current draw playing, with the screen off and in deep sleep (crystal,
   PLL and ring oscillator all stopped)
 - [ ] Battery voltage against a multimeter (`power.drop_mv`), also on a W board
-- [ ] Expression probe: an empty jack found within a second, a plugged pedal
-  never taken for one at any position, on Pico and Pico 2
-- [ ] The screen no longer going dark for a moment while playing
-- [ ] The Yamaha MU5 keeping its own sound by default, and taking each
-  listed sound when picked and at power-up
-- [ ] Scale mode: H held switching to it and back, kept after a power cycle,
-  and the first pedal after a mode key setting the tonic
 
 ## Later
 
